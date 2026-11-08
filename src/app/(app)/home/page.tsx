@@ -8,6 +8,7 @@ import { listShopping } from "@/server/shopping";
 import { formatCents } from "@/lib/money";
 import { TaskList } from "@/components/task-row";
 import { QuickAddTask } from "@/components/quick-add";
+import { InstallPrompt } from "@/components/pwa";
 import { Avatar, EmptyState, LinkButton, Section } from "@/components/ui";
 
 export const metadata = { title: "Home" };
@@ -44,6 +45,7 @@ export default async function HomePage() {
         <h1 className="text-2xl font-bold tracking-tight">{greeting}, {user.name.split(" ")[0]}</h1>
       </div>
       <div className="mb-6"><QuickAddTask /></div>
+      <InstallPrompt />
 
       {members.length === 1 && (
         <div className="card mb-6 flex items-center gap-3 border-brand-200 bg-brand-50 p-4">
