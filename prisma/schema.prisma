@@ -71,6 +71,7 @@ model Household {
   expenses      Expense[]
   settlements   Settlement[]
   notifications Notification[]
+  recurringBills RecurringBill[]
 }
 
 model Membership {
@@ -312,11 +313,41 @@ model Expense {
   createdById  String
   deletedAt    DateTime?
   createdAt    DateTime    @default(now())
+  // Set when the expense was added automatically by a recurring bill.
+  recurringBillId String?
+  recurringBill   RecurringBill? @relation(fields: [recurringBillId], references: [id], onDelete: SetNull)
+  period          String? // YYYY-MM the bill was for
 
   splits        ExpenseSplit[]
   shoppingItems ShoppingItem[]
 
+  @@unique([recurringBillId, period]) // one expense per bill per month, even if generation runs twice
   @@index([householdId, date])
+}
+
+// Rent, internet, utilities: added to Expenses automatically each month on dayOfMonth
+// (household timezone). Changing a bill only affects months not yet added.
+model RecurringBill {
+  id           String      @id @default(cuid())
+  householdId  String
+  household    Household   @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  description  String
+  amountCents  Int
+  payerId      String
+  category     String      @default("rent")
+  splitMethod  SplitMethod @default(EQUAL)
+  participants Json        // [{ userId, amountCents? }] in the same shape as a one-off expense
+  dayOfMonth   Int         // 1-28 so it exists in every month
+  startMonth   String      // YYYY-MM, first month to add
+  pausedAt     DateTime?
+  lastError    String?
+  createdById  String
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  expenses Expense[]
+
+  @@index([householdId])
 }
 
 model ExpenseSplit {
