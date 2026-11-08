@@ -1,3 +1,4 @@
+import { Logo } from "@/components/ui";
 import Link from "next/link";
 import { previewInvitation } from "@/server/households";
 import { getCurrentUser } from "@/server/session";
@@ -14,7 +15,7 @@ export default async function JoinPage({ params }: { params: Promise<{ code: str
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-4 py-10">
       <div className="card p-6 text-center">
-        <img src="/icon.svg" alt="" className="mx-auto mb-3 h-12 w-12" />
+        <Logo className="mx-auto mb-3 h-12 w-12" />
         {!invite ? (
           <>
             <h1 className="text-xl font-bold">This invite isn't valid</h1>

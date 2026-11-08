@@ -43,16 +43,16 @@ export default async function ShoppingPage() {
         </ActionForm>
       </div>
 
-      <Section title={`Needed · ${open.length}`}>
+      <Section title={`On the list · ${open.length}`}>
         {open.length === 0 ? (
           <EmptyState icon="🛒" title="The list is empty" body="Add things the household is running low on. Everyone sees the same list, so nothing gets bought twice." />
         ) : (
-          <ul className="space-y-2">
+          <ul className="card divide-y divide-slate-200 overflow-hidden">
             {open.map((i) => (
-              <li key={i.id} className="card flex items-start gap-3 p-3">
+              <li key={i.id} className="flex items-start gap-3 p-3">
                 <input type="checkbox" name="itemIds" value={i.id} form="bulk" aria-label={`Select ${i.name}`} className="mt-1 h-5 w-5 accent-brand-600" />
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium">{i.name} {i.quantity !== "1" && <span className="text-sm font-normal text-muted">× {i.quantity}</span>}</p>
+                  <p className="font-bold">{i.name} {i.quantity !== "1" && <span className="text-sm font-normal text-muted">× {i.quantity}</span>}</p>
                   {i.notes && <p className="text-xs text-muted">{i.notes}</p>}
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
                     {i.productUrl && (
