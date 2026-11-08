@@ -1,0 +1,392 @@
+// RoomSync data model.
+// Conventions:
+//  - Money is stored as integer cents (Int) — never floats.
+//  - Instants are stored in UTC (DateTime). Recurrence rules are expressed in the
+//    household's IANA timezone using local dates ("YYYY-MM-DD") and times ("HH:mm").
+//  - Every household-owned row carries householdId so access checks are a single lookup.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Accounts ----------
+
+model User {
+  id                 String   @id @default(cuid())
+  email              String   @unique
+  name               String
+  passwordHash       String
+  timezone           String   @default("America/New_York")
+  // Preferred hours for doing tasks, in minutes after local midnight.
+  preferredStartMin  Int      @default(540) // 09:00
+  preferredEndMin    Int      @default(1260) // 21:00
+  notifyInApp        Boolean  @default(true)
+  notifyEmail        Boolean  @default(false)
+  // Demo users/households are created by the "Try the demo" button and never mix with real data.
+  isDemo             Boolean  @default(false)
+  createdAt          DateTime @default(now())
+
+  sessions           Session[]
+  memberships        Membership[]
+  availability       AvailabilityWindow[]
+  calendarConnections CalendarConnection[]
+  notifications      Notification[]
+}
+
+model Session {
+  id        String   @id // SHA-256 hash of the cookie token; raw token never stored
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ---------- Households ----------
+
+enum Role {
+  OWNER
+  MEMBER
+}
+
+model Household {
+  id        String   @id @default(cuid())
+  name      String
+  timezone  String   @default("America/New_York")
+  currency  String   @default("USD")
+  isDemo    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  memberships   Membership[]
+  invitations   Invitation[]
+  tasks         TaskDefinition[]
+  occurrences   TaskOccurrence[]
+  shoppingItems ShoppingItem[]
+  expenses      Expense[]
+  settlements   Settlement[]
+  notifications Notification[]
+}
+
+model Membership {
+  id          String    @id @default(cuid())
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        Role      @default(MEMBER)
+  joinedAt    DateTime  @default(now())
+  leftAt      DateTime?
+
+  @@unique([householdId, userId])
+  @@index([userId])
+}
+
+model Invitation {
+  id          String    @id @default(cuid())
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  code        String    @unique
+  email       String?
+  createdById String
+  expiresAt   DateTime
+  usedAt      DateTime?
+  usedById    String?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([householdId])
+}
+
+// ---------- Tasks ----------
+
+enum TaskKind {
+  CHORE
+  ERRAND
+}
+
+enum Recurrence {
+  NONE
+  DAILY
+  WEEKLY
+}
+
+enum AssignmentMode {
+  UNASSIGNED
+  FIXED  // always the same roommate
+  ROTATE // round-robin through eligible roommates
+}
+
+model TaskDefinition {
+  id               String         @id @default(cuid())
+  householdId      String
+  household        Household      @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  title            String
+  description      String?
+  kind             TaskKind       @default(CHORE)
+  category         String         @default("cleaning")
+  estimatedMinutes Int            @default(15)
+  recurrence       Recurrence     @default(NONE)
+  interval         Int            @default(1)  // every N days/weeks
+  weekdays         Int[]          // ISO weekday 1=Mon..7=Sun (WEEKLY only)
+  startsOn         String         // local date YYYY-MM-DD in household tz
+  endsOn           String?
+  dueTime          String         @default("20:00") // local HH:mm
+  assignmentMode   AssignmentMode @default(UNASSIGNED)
+  assigneeId       String?        // FIXED mode
+  eligibleUserIds  String[]       // ROTATE pool (and the people who may be suggested)
+  createdById      String
+  archivedAt       DateTime?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  occurrences TaskOccurrence[]
+
+  @@index([householdId])
+}
+
+enum OccurrenceStatus {
+  PENDING
+  DONE
+  SKIPPED
+}
+
+// One concrete instance of a task. Recurring chores get one row per due date, so
+// completing this week's chore never touches last week's history.
+model TaskOccurrence {
+  id              String           @id @default(cuid())
+  definitionId    String
+  definition      TaskDefinition   @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+  householdId     String
+  household       Household        @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  sequence        Int              // 0-based index in the series (drives rotation)
+  originalDueAt   DateTime         // the slot the rule generated; never changes
+  dueAt           DateTime         // may move when rescheduled
+  status          OccurrenceStatus @default(PENDING)
+  assigneeId      String?
+  completedAt     DateTime?
+  completedById   String?
+  skipReason      String?
+  manuallyChanged Boolean          @default(false) // reassigned/rescheduled by a person; survives rule edits
+  // Internal schedule slot (RoomSync plan). Not the same as an external calendar event.
+  scheduledStart  DateTime?
+  scheduledEnd    DateTime?
+  createdAt       DateTime         @default(now())
+
+  events         TaskEvent[]
+  calendarEvents CalendarEventLink[]
+  shoppingItems  ShoppingItem[]
+
+  @@unique([definitionId, originalDueAt])
+  @@index([householdId, dueAt])
+  @@index([assigneeId, status])
+}
+
+model TaskEvent {
+  id           String         @id @default(cuid())
+  occurrenceId String
+  occurrence   TaskOccurrence @relation(fields: [occurrenceId], references: [id], onDelete: Cascade)
+  actorId      String?
+  type         String         // created | assigned | completed | skipped | rescheduled | reopened | scheduled | swapped
+  data         Json?
+  createdAt    DateTime       @default(now())
+
+  @@index([occurrenceId])
+}
+
+// ---------- Availability & calendars ----------
+
+// Manual recurring weekly availability, in the user's own timezone.
+model AvailabilityWindow {
+  id       String @id @default(cuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weekday  Int    // 1=Mon..7=Sun
+  startMin Int    // minutes after local midnight
+  endMin   Int
+
+  @@index([userId])
+}
+
+enum CalendarProvider {
+  GOOGLE
+  APPLE
+}
+
+enum ConnectionStatus {
+  ACTIVE
+  ERROR
+  REVOKED
+}
+
+model CalendarConnection {
+  id              String           @id @default(cuid())
+  userId          String
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider        CalendarProvider
+  status          ConnectionStatus @default(ACTIVE)
+  accountEmail    String?
+  // Tokens are AES-256-GCM encrypted with ENCRYPTION_KEY and never sent to the browser.
+  accessTokenEnc  String?
+  refreshTokenEnc String?
+  tokenExpiresAt  DateTime?
+  calendarId      String           @default("primary")
+  lastSyncAt      DateTime?
+  lastError       String?
+  createdAt       DateTime         @default(now())
+
+  eventLinks CalendarEventLink[]
+
+  @@unique([userId, provider])
+}
+
+// Records which occurrences have actually been written to an external calendar.
+// The unique constraint prevents duplicate events for the same occurrence/connection.
+model CalendarEventLink {
+  id              String             @id @default(cuid())
+  occurrenceId    String
+  occurrence      TaskOccurrence     @relation(fields: [occurrenceId], references: [id], onDelete: Cascade)
+  connectionId    String
+  connection      CalendarConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  externalEventId String
+  syncedAt        DateTime           @default(now())
+
+  @@unique([occurrenceId, connectionId])
+}
+
+// ---------- Shopping ----------
+
+enum ShoppingStatus {
+  NEEDED
+  CLAIMED   // someone said they'll buy it
+  PURCHASED
+}
+
+model ShoppingItem {
+  id                 String          @id @default(cuid())
+  householdId        String
+  household          Household       @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  name               String
+  quantity           String          @default("1")
+  notes              String?
+  productUrl         String?         // saved link; checkout happens on the retailer's site
+  status             ShoppingStatus  @default(NEEDED)
+  addedById          String
+  claimedById        String?
+  purchasedById      String?
+  purchasedAt        DateTime?
+  priceCents         Int?
+  errandOccurrenceId String?
+  errandOccurrence   TaskOccurrence? @relation(fields: [errandOccurrenceId], references: [id], onDelete: SetNull)
+  expenseId          String?
+  expense            Expense?        @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+  createdAt          DateTime        @default(now())
+
+  @@index([householdId, status])
+}
+
+// ---------- Expenses ----------
+
+enum SplitMethod {
+  EQUAL
+  CUSTOM
+}
+
+model Expense {
+  id           String      @id @default(cuid())
+  householdId  String
+  household    Household   @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  payerId      String
+  amountCents  Int
+  date         String      // local date YYYY-MM-DD
+  description  String
+  category     String      @default("groceries")
+  splitMethod  SplitMethod @default(EQUAL)
+  receiptKey   String?     // storage key; served only via /api/receipts/[expenseId]
+  receiptMime  String?
+  createdById  String
+  deletedAt    DateTime?
+  createdAt    DateTime    @default(now())
+
+  splits        ExpenseSplit[]
+  shoppingItems ShoppingItem[]
+
+  @@index([householdId, date])
+}
+
+model ExpenseSplit {
+  id          String  @id @default(cuid())
+  expenseId   String
+  expense     Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  userId      String
+  amountCents Int
+
+  @@unique([expenseId, userId])
+}
+
+// Bookkeeping only: records that money changed hands outside RoomSync.
+model Settlement {
+  id          String    @id @default(cuid())
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  fromUserId  String
+  toUserId    String
+  amountCents Int
+  date        String
+  note        String?
+  createdById String
+  createdAt   DateTime  @default(now())
+
+  @@index([householdId])
+}
+
+// ---------- Notifications ----------
+
+model Notification {
+  id          String     @id @default(cuid())
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  householdId String?
+  household   Household? @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  type        String     // task_due_soon | task_overdue | task_assigned | ...
+  title       String
+  body        String?
+  link        String?
+  dedupeKey   String     @unique
+  readAt      DateTime?
+  createdAt   DateTime   @default(now())
+
+  deliveries NotificationDelivery[]
+
+  @@index([userId, readAt])
+}
+
+enum DeliveryChannel {
+  IN_APP
+  EMAIL
+}
+
+enum DeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED // channel not configured or user opted out
+}
+
+model NotificationDelivery {
+  id             String          @id @default(cuid())
+  notificationId String
+  notification   Notification    @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  channel        DeliveryChannel
+  status         DeliveryStatus  @default(PENDING)
+  attempts       Int             @default(0)
+  lastAttemptAt  DateTime?
+  error          String?
+
+  @@unique([notificationId, channel])
+}
