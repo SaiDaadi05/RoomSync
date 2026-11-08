@@ -71,6 +71,7 @@ model Household {
   expenses      Expense[]
   settlements   Settlement[]
   notifications Notification[]
+  assistantActions AssistantAction[]
 }
 
 model Membership {
@@ -389,4 +390,33 @@ model NotificationDelivery {
   error          String?
 
   @@unique([notificationId, channel])
+}
+
+// ---------- Assistant ----------
+
+enum AssistantActionStatus {
+  PENDING
+  CONFIRMED
+  DISCARDED
+  FAILED
+}
+
+// A change the AI assistant drafted. Nothing happens until the user who asked taps
+// Confirm; the stored payload (not anything sent back from the browser) is what runs,
+// through the normal service layer, so all access and money rules still apply.
+model AssistantAction {
+  id          String                @id @default(cuid())
+  householdId String
+  household   Household             @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  userId      String
+  kind        String                // add_expense | record_settlement | add_shopping_items | mark_bought | add_task | complete_task
+  payload     Json
+  summary     String
+  status      AssistantActionStatus @default(PENDING)
+  error       String?
+  resultLink  String?
+  createdAt   DateTime              @default(now())
+  decidedAt   DateTime?
+
+  @@index([userId, status])
 }
