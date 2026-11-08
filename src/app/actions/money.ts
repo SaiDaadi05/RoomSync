@@ -10,6 +10,7 @@ import {
   purchaseWithExpense, restockItem, unclaimShoppingItem, updateShoppingItem,
 } from "@/server/shopping";
 import { parseMoneyToCents } from "@/lib/money";
+import { parsePercent } from "@/lib/split";
 import { invalid } from "@/server/errors";
 
 function refresh() {
@@ -50,13 +51,39 @@ export async function createExpenseAction(_: ActionState, fd: FormData): Promise
   redirect(`/expenses/${id}`);
 }
 
+const SPLIT_METHODS = ["EQUAL", "CUSTOM", "SHARES", "PERCENT", "ITEMIZED"] as const;
+type SplitMethod = (typeof SPLIT_METHODS)[number];
+
 function expenseFromForm(fd: FormData) {
-  const splitMethod = fd.get("splitMethod") === "CUSTOM" ? "CUSTOM" : "EQUAL";
-  const participants = fd.getAll("participants").map(String).map((userId) => {
-    if (splitMethod === "EQUAL") return { userId };
-    const raw = String(fd.get(`amt_${userId}`) ?? "").trim();
-    return { userId, amountCents: raw ? parseMoneyToCents(raw) : 0 };
+  const raw = String(fd.get("splitMethod") ?? "EQUAL");
+  const splitMethod: SplitMethod = (SPLIT_METHODS as readonly string[]).includes(raw) ? (raw as SplitMethod) : "EQUAL";
+  const field = (name: string) => String(fd.get(name) ?? "").trim();
+  const participants = splitMethod === "ITEMIZED" ? [] : fd.getAll("participants").map(String).map((userId) => {
+    switch (splitMethod) {
+      case "CUSTOM": {
+        const v = field(`amt_${userId}`);
+        return { userId, amountCents: v ? parseMoneyToCents(v) : 0 };
+      }
+      case "SHARES": {
+        const v = field(`w_${userId}`) || "0";
+        if (!/^\d{1,6}$/.test(v)) throw invalid("Shares must be whole numbers like 1 or 2");
+        return { userId, weight: Number(v) };
+      }
+      case "PERCENT": {
+        const bp = parsePercent(field(`pct_${userId}`) || "0");
+        if (bp === null) throw invalid("Percents must be numbers like 25 or 12.5");
+        return { userId, weight: bp };
+      }
+      default:
+        return { userId };
+    }
   });
+  const items = splitMethod !== "ITEMIZED" ? [] : Array.from({ length: Math.min(Number(fd.get("itemCount") ?? 0) || 0, 100) }, (_, i) => i)
+    .filter((i) => field(`item_name_${i}`) || field(`item_amt_${i}`))
+    .map((i) => {
+      const amt = field(`item_amt_${i}`);
+      return { name: field(`item_name_${i}`), amountCents: amt ? parseMoneyToCents(amt) : 0, userIds: fd.getAll(`item_who_${i}`).map(String) };
+    });
   return {
     payerId: fd.get("payerId"),
     amountCents: parseMoneyToCents(String(fd.get("amount") ?? "")),
@@ -65,6 +92,7 @@ function expenseFromForm(fd: FormData) {
     category: fd.get("category") || "other",
     splitMethod,
     participants,
+    items,
   };
 }
 

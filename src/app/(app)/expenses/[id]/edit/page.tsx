@@ -34,6 +34,8 @@ export default async function EditExpense({ params }: { params: Promise<{ id: st
             id: e.id, description: e.description, amount: dollars(e.amountCents), date: e.date, payerId: e.payerId,
             category: e.category, splitMethod: e.splitMethod, participants: e.splits.map((s) => s.userId),
             custom: Object.fromEntries(e.splits.map((s) => [s.userId, dollars(s.amountCents)])),
+            weights: Object.fromEntries(e.splits.map((s) => [s.userId, s.weight == null ? "" : e.splitMethod === "PERCENT" ? String(s.weight / 100) : String(s.weight)])),
+            items: e.items.map((i) => ({ name: i.name, amount: dollars(i.amountCents), who: i.userIds })),
           }}
         />
       </div>
