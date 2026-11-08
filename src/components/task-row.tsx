@@ -3,6 +3,7 @@ import type { TaskDefinition, TaskOccurrence } from "@prisma/client";
 import { Avatar, Badge } from "./ui";
 import { completeAction, reopenAction, claimAction } from "@/app/actions/tasks";
 import { formatDue } from "@/lib/time";
+import { NudgeButton } from "./nudge-button";
 
 type Member = { id: string; name: string };
 export type OccWithDef = TaskOccurrence & { definition: TaskDefinition };
@@ -47,6 +48,7 @@ export function TaskRow({ occ, members, tz, currentUserId }: { occ: OccWithDef; 
           {occ.definition.kind === "ERRAND" && <Badge tone="violet">Errand</Badge>}
         </p>
       </Link>
+      {overdue && assignee && assignee.id !== currentUserId && <NudgeButton occurrenceId={occ.id} name={assignee.name.split(" ")[0]} />}
       {assignee ? (
         <Avatar id={assignee.id} name={assignee.name} size="sm" />
       ) : occ.status === "PENDING" ? (
@@ -58,7 +60,6 @@ export function TaskRow({ occ, members, tz, currentUserId }: { occ: OccWithDef; 
       {done && occ.completedById && occ.completedById !== occ.assigneeId && (
         <span className="sr-only">Completed by {members.find((m) => m.id === occ.completedById)?.name}</span>
       )}
-      {void currentUserId}
     </li>
   );
 }
