@@ -6,7 +6,8 @@ import { prisma } from "@/server/db";
 import { COMMON_TIMEZONES, minutesToHHMM } from "@/lib/time";
 import { Avatar, Badge, PageHeader, Section } from "@/components/ui";
 import { CopyButton } from "@/components/copy-button";
-import { HouseholdForm, InviteForm, LeaveForm, PreferencesForm } from "@/components/settings-forms";
+import { HouseholdForm, InviteForm, LeaveForm, PayHandlesForm, PreferencesForm } from "@/components/settings-forms";
+import { getPayHandles } from "@/server/payments";
 import { revokeInviteAction } from "@/app/actions/households";
 import { logoutAction } from "@/app/actions/auth";
 import { googleConfigured } from "@/server/calendar/google";
@@ -17,11 +18,13 @@ export const metadata = { title: "Household & settings" };
 export default async function HouseholdPage({ searchParams }: { searchParams: Promise<{ calendar?: string }> }) {
   const { user, household } = await requireHousehold();
   const sp = await searchParams;
-  const [{ members, role }, invites, connections] = await Promise.all([
+  const [{ members, role }, invites, connections, handleMap] = await Promise.all([
     getHouseholdOverview(user.id, household.id),
     listInvitations(user.id, household.id),
     prisma.calendarConnection.findMany({ where: { userId: user.id }, select: { id: true, provider: true, status: true, accountEmail: true, lastSyncAt: true, lastError: true } }),
+    getPayHandles([user.id]),
   ]);
+  const myHandles = handleMap.get(user.id) ?? { venmoHandle: null, paypalHandle: null, cashtag: null };
   const appUrl = process.env.APP_URL ?? "http://localhost:3000";
   const google = connections.find((c) => c.provider === "GOOGLE");
 
@@ -107,6 +110,12 @@ export default async function HouseholdPage({ searchParams }: { searchParams: Pr
           <div className="p-4 text-sm">
             <Link href="/planner/availability" className="font-semibold text-brand-700">Set your weekly availability manually →</Link>
           </div>
+        </div>
+      </Section>
+
+      <Section title="Get paid back">
+        <div id="pay" className="card p-4">
+          <PayHandlesForm handles={myHandles} />
         </div>
       </Section>
 

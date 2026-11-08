@@ -6,6 +6,9 @@ import { formatCents } from "@/lib/money";
 import { todayIn } from "@/lib/time";
 import { Avatar, EmptyState, LinkButton, PageHeader, Section } from "@/components/ui";
 import { SettleForm } from "@/components/settle-form";
+import { getPayHandles } from "@/server/payments";
+import { payLinks } from "@/lib/pay-links";
+import { RemindButton } from "@/components/remind-button";
 import { deleteSettlementAction } from "@/app/actions/money";
 
 export const metadata = { title: "Expenses" };
@@ -19,6 +22,8 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
     activeMembers(household.id),
   ]);
   const cur = household.currency;
+  // Everyone in suggestions has a membership in this household (computeBalances only returns members).
+  const handles = await getPayHandles([...new Set(suggestions.filter((s) => s.fromUserId === user.id).map((s) => s.toUserId))]);
   const nameOf = (id: string) => balances.find((b) => b.userId === id)?.name ?? "Someone";
   const mine = balances.find((b) => b.userId === user.id)?.cents ?? 0;
 
@@ -50,12 +55,27 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
       {suggestions.length > 0 && (
         <Section title="Suggested payments to settle up">
           <ul className="space-y-2">
-            {suggestions.map((s) => (
-              <li key={`${s.fromUserId}-${s.toUserId}`} className="card flex items-center gap-3 p-3 text-sm">
-                <span className="flex-1"><b>{nameOf(s.fromUserId)}</b> pays <b>{nameOf(s.toUserId)}</b> <span className="tabular-nums">{formatCents(s.amountCents, cur)}</span></span>
-                <Link className="btn-ghost min-h-9 text-xs" href={`/expenses?from=${s.fromUserId}&to=${s.toUserId}&amount=${(s.amountCents / 100).toFixed(2)}#settle`}>Record</Link>
-              </li>
-            ))}
+            {suggestions.map((s) => {
+              const links = s.fromUserId === user.id ? payLinks(handles.get(s.toUserId) ?? {}, s.amountCents, `RoomSync: ${household.name}`) : [];
+              return (
+                <li key={`${s.fromUserId}-${s.toUserId}`} className="card p-3 text-sm">
+                  <div className="flex items-center gap-3">
+                    <span className="flex-1"><b>{s.fromUserId === user.id ? "You" : nameOf(s.fromUserId)}</b> {s.fromUserId === user.id ? "pay" : "pays"} <b>{s.toUserId === user.id ? "you" : nameOf(s.toUserId)}</b> <span className="tabular-nums">{formatCents(s.amountCents, cur)}</span></span>
+                    {s.toUserId === user.id && <RemindButton debtorId={s.fromUserId} name={nameOf(s.fromUserId).split(" ")[0]} />}
+                    <Link className="btn-ghost min-h-9 text-xs" href={`/expenses?from=${s.fromUserId}&to=${s.toUserId}&amount=${(s.amountCents / 100).toFixed(2)}#settle`}>Record</Link>
+                  </div>
+                  {links.length > 0 && (
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-muted">Pay with</span>
+                      {links.map((l) => (
+                        <a key={l.app} href={l.href} target="_blank" rel="noopener noreferrer" className="btn-secondary min-h-9 px-3 text-xs">{l.app}</a>
+                      ))}
+                      <span className="w-full text-xs text-muted">Then tap Record so the balance updates.</span>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </Section>
       )}

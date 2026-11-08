@@ -4,6 +4,7 @@ import { ActionForm, SubmitButton } from "./forms";
 import { TimezoneSelect } from "./timezone-input";
 import { updatePreferencesAction } from "@/app/actions/auth";
 import { createInviteAction, leaveHouseholdAction, updateHouseholdAction } from "@/app/actions/households";
+import { updatePayHandlesAction } from "@/app/actions/money";
 
 export function PreferencesForm({ user, timezones, emailAvailable }: {
   user: { name: string; timezone: string; preferredStart: string; preferredEnd: string; notifyInApp: boolean; notifyEmail: boolean };
@@ -73,6 +74,27 @@ export function LeaveForm() {
   return (
     <ActionForm action={leaveHouseholdAction}>
       <SubmitButton className="btn-danger w-full">Leave this household</SubmitButton>
+    </ActionForm>
+  );
+}
+
+export function PayHandlesForm({ handles }: { handles: { venmoHandle: string | null; paypalHandle: string | null; cashtag: string | null } }) {
+  const field = (name: string, label: string, prefix: string, value: string | null, placeholder: string) => (
+    <div>
+      <label className="label" htmlFor={`pay-${name}`}>{label}</label>
+      <div className="relative">
+        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">{prefix}</span>
+        <input id={`pay-${name}`} name={name} defaultValue={value ?? ""} placeholder={placeholder} maxLength={60} autoCapitalize="none" autoCorrect="off" className="input pl-8" />
+      </div>
+    </div>
+  );
+  return (
+    <ActionForm action={updatePayHandlesAction} className="space-y-3">
+      {field("venmoHandle", "Venmo", "@", handles.venmoHandle, "alex-rivera")}
+      {field("paypalHandle", "PayPal.me", "/", handles.paypalHandle, "alexrivera")}
+      {field("cashtag", "Cash App", "$", handles.cashtag, "alexr")}
+      <p className="text-xs text-muted">Only your household sees these. When someone owes you, their Settle up button opens the app with your name and the amount filled in. RoomSync never moves money itself.</p>
+      <SubmitButton className="btn-secondary">Save payment apps</SubmitButton>
     </ActionForm>
   );
 }

@@ -27,6 +27,10 @@ model User {
   preferredEndMin    Int      @default(1260) // 21:00
   notifyInApp        Boolean  @default(true)
   notifyEmail        Boolean  @default(false)
+  // Optional pay handles, shown to housemates so "Settle up" can open their payment app.
+  venmoHandle        String?
+  paypalHandle       String?
+  cashtag            String?
   // Demo users/households are created by the "Try the demo" button and never mix with real data.
   isDemo             Boolean  @default(false)
   createdAt          DateTime @default(now())

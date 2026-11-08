@@ -11,6 +11,7 @@ import {
 } from "@/server/shopping";
 import { parseMoneyToCents } from "@/lib/money";
 import { invalid } from "@/server/errors";
+import { remindToSettle, updatePayHandles } from "@/server/payments";
 
 function refresh() {
   revalidatePath("/home");
@@ -183,6 +184,29 @@ export async function shoppingBulkAction(_: ActionState, fd: FormData): Promise<
       return { ok: true, message: "Bought and added to Expenses" };
     }
     throw invalid("Unknown action");
+  } catch (e) {
+    return toActionError(e);
+  }
+}
+
+export async function updatePayHandlesAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const user = await requireUser();
+    await updatePayHandles(user.id, { venmoHandle: fd.get("venmoHandle"), paypalHandle: fd.get("paypalHandle"), cashtag: fd.get("cashtag") });
+    revalidatePath("/household");
+    revalidatePath("/expenses");
+    return { ok: true, message: "Payment apps saved" };
+  } catch (e) {
+    return toActionError(e);
+  }
+}
+
+export async function remindToSettleAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const { user, household } = await requireHousehold();
+    const r = await remindToSettle(user.id, household.id, String(fd.get("debtorId")));
+    const first = r.name.split(" ")[0];
+    return { ok: true, message: r.sent ? `Reminded ${first}` : `${first} was already reminded this week` };
   } catch (e) {
     return toActionError(e);
   }
