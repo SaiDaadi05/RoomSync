@@ -1,7 +1,7 @@
 "use client";
 
 import { ActionForm, SubmitButton } from "./forms";
-import { acceptProposalsAction, planManuallyAction, swapAction, syncToGoogleAction, addAvailabilityAction } from "@/app/actions/planner";
+import { acceptProposalsAction, planManuallyAction, swapAction, syncToGoogleAction, addAvailabilityAction, createHandoffAction, respondHandoffAction } from "@/app/actions/planner";
 
 export type ProposalView = { occurrenceId: string; title: string; who: string; when: string; reason: string; ok: boolean; payload: string };
 
@@ -87,6 +87,49 @@ export function AvailabilityForm() {
         <input type="time" name="end" defaultValue="21:00" required className="input" aria-label="To" />
       </div>
       <SubmitButton className="btn-primary w-full">Add free time</SubmitButton>
+    </ActionForm>
+  );
+}
+
+/** Send one rebalance suggestion as a handoff request. */
+export function RebalanceSend({ occurrenceId, toUserId, week, label }: { occurrenceId: string; toUserId: string; week: number; label: string }) {
+  return (
+    <ActionForm action={createHandoffAction}>
+      <input type="hidden" name="occurrenceId" value={occurrenceId} />
+      <input type="hidden" name="toUserId" value={toUserId} />
+      <input type="hidden" name="source" value="rebalance" />
+      <input type="hidden" name="week" value={week} />
+      <SubmitButton className="btn-secondary min-h-9 w-full text-xs" pendingText="Sending…">{label}</SubmitButton>
+    </ActionForm>
+  );
+}
+
+/** "Can you take this?" for one of my own tasks. */
+export function HandoffForm({ mine, roommates, week }: { mine: { id: string; label: string }[]; roommates: { id: string; name: string }[]; week: number }) {
+  return (
+    <ActionForm action={createHandoffAction} className="space-y-2">
+      <input type="hidden" name="week" value={week} />
+      <div className="grid gap-2 sm:grid-cols-2">
+        <select name="occurrenceId" required className="input text-sm" aria-label="Your task">
+          {mine.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+        </select>
+        <select name="toUserId" required className="input text-sm" aria-label="Roommate">
+          {roommates.map((r) => <option key={r.id} value={r.id}>Ask {r.name.split(" ")[0]}</option>)}
+        </select>
+      </div>
+      <input name="message" maxLength={200} placeholder="Add a note (optional)" className="input text-sm" aria-label="Note" />
+      <SubmitButton className="btn-secondary w-full">Ask them to take it</SubmitButton>
+      <p className="text-xs text-muted">Nothing moves until they say yes.</p>
+    </ActionForm>
+  );
+}
+
+export function HandoffAnswer({ id }: { id: string }) {
+  return (
+    <ActionForm action={respondHandoffAction} className="flex gap-2">
+      <input type="hidden" name="id" value={id} />
+      <button type="submit" name="answer" value="accept" className="btn-primary min-h-9 flex-1 text-xs">Accept</button>
+      <button type="submit" name="answer" value="decline" className="btn-secondary min-h-9 flex-1 text-xs">Decline</button>
     </ActionForm>
   );
 }

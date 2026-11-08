@@ -6,6 +6,7 @@ import { requireHousehold, requireUser } from "@/server/session";
 import { toActionError, type ActionState } from "@/server/action";
 import { acceptSchedule, addAvailability, deleteAvailability, swapOccurrences, syncOccurrenceToGoogle, unscheduleOccurrence } from "@/server/planner";
 import { revokeGoogle } from "@/server/calendar/google";
+import { cancelHandoff, createHandoff, respondHandoff } from "@/server/handoffs";
 import { hhmmToMinutes, localToUtc } from "@/lib/time";
 import { prisma } from "@/server/db";
 import { invalid } from "@/server/errors";
@@ -99,4 +100,41 @@ export async function disconnectCalendarAction(fd: FormData) {
   const user = await requireUser();
   if (fd.get("provider") === "GOOGLE") await revokeGoogle(user.id);
   redirect("/household");
+}
+
+// Handoffs: each of these removes the row it was submitted from, so the result is
+// shown as a banner on the planner instead of inside the form.
+export async function createHandoffAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const user = await requireUser();
+    await createHandoff(user.id, {
+      occurrenceId: String(fd.get("occurrenceId") ?? ""),
+      toUserId: String(fd.get("toUserId") ?? ""),
+      message: String(fd.get("message") ?? ""),
+      source: fd.get("source") === "rebalance" ? "rebalance" : "manual",
+    });
+  } catch (e) {
+    return toActionError(e);
+  }
+  refresh();
+  redirect(`/planner?week=${Number(fd.get("week")) || 0}&handoff=sent#handoffs`);
+}
+
+export async function respondHandoffAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const accept = fd.get("answer") === "accept";
+  try {
+    const user = await requireUser();
+    await respondHandoff(user.id, String(fd.get("id") ?? ""), accept);
+  } catch (e) {
+    return toActionError(e);
+  }
+  refresh();
+  redirect(`/planner?handoff=${accept ? "accepted" : "declined"}#handoffs`);
+}
+
+export async function cancelHandoffAction(fd: FormData) {
+  const user = await requireUser();
+  await cancelHandoff(user.id, String(fd.get("id") ?? ""));
+  refresh();
+  redirect("/planner?handoff=cancelled#handoffs");
 }
