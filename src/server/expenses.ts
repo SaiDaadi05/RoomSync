@@ -155,11 +155,24 @@ export async function deleteSettlement(userId: string, settlementId: string) {
  */
 export async function computeBalances(userId: string, householdId: string) {
   await requireMember(userId, householdId);
-  const [expenses, settlements, members] = await Promise.all([
-    prisma.expense.findMany({ where: { householdId, deletedAt: null }, include: { splits: true } }),
-    prisma.settlement.findMany({ where: { householdId } }),
+  const [net, members] = await Promise.all([
+    netBalances(prisma, householdId),
     // Include former members too: they can still owe or be owed.
     prisma.membership.findMany({ where: { householdId }, include: { user: { select: { id: true, name: true } } } }),
+  ]);
+  const names = new Map(members.map((m) => [m.userId, m.user.name]));
+  const balances = [...net.entries()].map(([id, cents]) => ({ userId: id, name: names.get(id) ?? "Unknown", cents, active: !members.find((m) => m.userId === id)?.leftAt }));
+  return { balances, suggestions: simplifyDebts(balances) };
+}
+
+type Db = Pick<typeof prisma, "expense" | "settlement" | "membership">;
+
+/** Net cents per person (everyone who was ever a member). No access check: callers do that. */
+export async function netBalances(db: Db, householdId: string) {
+  const [expenses, settlements, members] = await Promise.all([
+    db.expense.findMany({ where: { householdId, deletedAt: null }, include: { splits: true } }),
+    db.settlement.findMany({ where: { householdId } }),
+    db.membership.findMany({ where: { householdId }, select: { userId: true } }),
   ]);
   const net = new Map<string, number>(members.map((m) => [m.userId, 0]));
   const add = (id: string, v: number) => net.set(id, (net.get(id) ?? 0) + v);
@@ -171,9 +184,7 @@ export async function computeBalances(userId: string, householdId: string) {
     add(s.fromUserId, s.amountCents);
     add(s.toUserId, -s.amountCents);
   }
-  const names = new Map(members.map((m) => [m.userId, m.user.name]));
-  const balances = [...net.entries()].map(([id, cents]) => ({ userId: id, name: names.get(id) ?? "Unknown", cents, active: !members.find((m) => m.userId === id)?.leftAt }));
-  return { balances, suggestions: simplifyDebts(balances) };
+  return net;
 }
 
 /** Greedy debt simplification: at most n−1 payments that zero everyone out. Deterministic. */

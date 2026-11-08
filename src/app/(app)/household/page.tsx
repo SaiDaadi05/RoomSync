@@ -8,6 +8,7 @@ import { Avatar, Badge, PageHeader, Section } from "@/components/ui";
 import { CopyButton } from "@/components/copy-button";
 import { MemberActions } from "@/components/member-actions";
 import { openTaskCounts } from "@/server/members";
+import { moveOutPlan } from "@/server/moveout";
 import { HouseholdForm, InviteForm, LeaveForm, PreferencesForm } from "@/components/settings-forms";
 import { revokeInviteAction } from "@/app/actions/households";
 import { logoutAction } from "@/app/actions/auth";
@@ -19,11 +20,12 @@ export const metadata = { title: "Household & settings" };
 export default async function HouseholdPage({ searchParams }: { searchParams: Promise<{ calendar?: string; member?: string; released?: string }> }) {
   const { user, household } = await requireHousehold();
   const sp = await searchParams;
-  const [{ members, role }, invites, connections, openCounts] = await Promise.all([
+  const [{ members, role }, invites, connections, openCounts, myPlan] = await Promise.all([
     getHouseholdOverview(user.id, household.id),
     listInvitations(user.id, household.id),
     prisma.calendarConnection.findMany({ where: { userId: user.id }, select: { id: true, provider: true, status: true, accountEmail: true, lastSyncAt: true, lastError: true } }),
     openTaskCounts(user.id, household.id),
+    moveOutPlan(user.id, household.id, user.id),
   ]);
   const released = Number(sp.released ?? 0);
   const appUrl = process.env.APP_URL ?? "http://localhost:3000";
@@ -141,7 +143,7 @@ export default async function HouseholdPage({ searchParams }: { searchParams: Pr
       <div className="space-y-3">
         <Link href="/onboarding" className="btn-secondary w-full">Create or join another household</Link>
         <form action={logoutAction}><button className="btn-secondary w-full">Log out</button></form>
-        <LeaveForm openTasks={openCounts.get(user.id) ?? 0} />
+        <LeaveForm openTasks={openCounts.get(user.id) ?? 0} viewerId={user.id} plan={{ userId: user.id, cents: myPlan.cents, currency: household.currency, payments: myPlan.payments }} />
       </div>
     </>
   );

@@ -19,6 +19,7 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
     activeMembers(household.id),
   ]);
   const cur = household.currency;
+  const isOwner = members.find((m) => m.id === user.id)?.role === "OWNER";
   const nameOf = (id: string) => balances.find((b) => b.userId === id)?.name ?? "Someone";
   const mine = balances.find((b) => b.userId === user.id)?.cents ?? 0;
 
@@ -42,6 +43,9 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
               <span className={`font-semibold tabular-nums ${b.cents > 0 ? "text-emerald-700" : b.cents < 0 ? "text-amber-800" : "text-slate-500"}`}>
                 {b.cents > 0 ? `gets back ${formatCents(b.cents, cur)}` : b.cents < 0 ? `owes ${formatCents(-b.cents, cur)}` : "settled"}
               </span>
+              {!b.active && b.cents !== 0 && isOwner && (
+                <Link href={`/expenses/move-out/${b.userId}`} className="btn-ghost min-h-9 text-xs">Settle up</Link>
+              )}
             </li>
           ))}
         </ul>

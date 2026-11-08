@@ -8,6 +8,7 @@ import {
 } from "@/server/households";
 import { createTask } from "@/server/tasks";
 import { removeMember, setMemberRole } from "@/server/members";
+import { recordMoveOut } from "@/server/moveout";
 import { requireHousehold, requireUser, setCurrentHousehold } from "@/server/session";
 import { toActionError, type ActionState } from "@/server/action";
 import { STARTER_CHORES } from "@/lib/starter-chores";
@@ -95,10 +96,10 @@ export async function updateHouseholdAction(_: ActionState, fd: FormData): Promi
   }
 }
 
-export async function leaveHouseholdAction(_: ActionState, _fd: FormData): Promise<ActionState> {
+export async function leaveHouseholdAction(_: ActionState, fd: FormData): Promise<ActionState> {
   try {
     const { user, household } = await requireHousehold();
-    await leaveHousehold(user.id, household.id);
+    await leaveHousehold(user.id, household.id, { acknowledgeBalance: fd.get("acknowledgeBalance") === "on" });
   } catch (e) {
     return toActionError(e);
   }
@@ -126,6 +127,19 @@ export async function setMemberRoleAction(_: ActionState, fd: FormData): Promise
     await setMemberRole(user.id, household.id, String(fd.get("memberId") ?? ""), role);
     revalidatePath("/household");
     return { ok: true, message: role === "OWNER" ? "They're now an owner." : "They're now a regular member." };
+  } catch (e) {
+    return toActionError(e);
+  }
+}
+
+export async function recordMoveOutAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const { user, household } = await requireHousehold();
+    const payments = await recordMoveOut(user.id, household.id, String(fd.get("memberId") || user.id));
+    revalidatePath("/expenses", "layout");
+    revalidatePath("/household");
+    revalidatePath("/home");
+    return { ok: true, message: `Recorded ${payments.length} payment${payments.length === 1 ? "" : "s"}. Balance is now settled.` };
   } catch (e) {
     return toActionError(e);
   }

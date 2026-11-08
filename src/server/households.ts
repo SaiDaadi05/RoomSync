@@ -1,6 +1,8 @@
 import crypto from "node:crypto";
 import { z } from "zod";
 import { prisma } from "./db";
+import { netBalances } from "./expenses";
+import { formatCents } from "@/lib/money";
 import { activeMembers, requireMember, requireOwner } from "./access";
 import { AppError, invalid } from "./errors";
 import { leaveAndRelease } from "./members";
@@ -117,7 +119,7 @@ export async function acceptInvitation(userId: string, codeRaw: string) {
   });
 }
 
-export async function leaveHousehold(userId: string, householdId: string) {
+export async function leaveHousehold(userId: string, householdId: string, opts: { acknowledgeBalance?: boolean } = {}) {
   const m = await requireMember(userId, householdId);
   if (m.role === "OWNER") {
     const otherOwners = await prisma.membership.count({
@@ -125,6 +127,14 @@ export async function leaveHousehold(userId: string, householdId: string) {
     });
     const others = await prisma.membership.count({ where: { householdId, leftAt: null, userId: { not: userId } } });
     if (others > 0 && otherOwners === 0) throw invalid("Make another roommate an owner before leaving");
+  }
+  if (!opts.acknowledgeBalance) {
+    const net = await netBalances(prisma, householdId);
+    const cents = net.get(userId) ?? 0;
+    if (cents !== 0) {
+      const amount = formatCents(Math.abs(cents), m.household.currency);
+      throw invalid(cents < 0 ? `You still owe ${amount}. Settle up first, or confirm you're leaving with a balance.` : `You're still owed ${amount}. Settle up first, or confirm you're leaving with a balance.`);
+    }
   }
   await leaveAndRelease(userId, householdId);
 }
