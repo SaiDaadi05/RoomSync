@@ -6,7 +6,7 @@ import { prisma } from "@/server/db";
 import { COMMON_TIMEZONES, minutesToHHMM } from "@/lib/time";
 import { Avatar, Badge, PageHeader, Section } from "@/components/ui";
 import { CopyButton } from "@/components/copy-button";
-import { HouseholdForm, InviteForm, LeaveForm, PreferencesForm } from "@/components/settings-forms";
+import { HouseRulesForm, HouseholdForm, InviteForm, LeaveForm, PreferencesForm } from "@/components/settings-forms";
 import { revokeInviteAction } from "@/app/actions/households";
 import { logoutAction } from "@/app/actions/auth";
 import { googleConfigured } from "@/server/calendar/google";
@@ -69,6 +69,21 @@ export default async function HouseholdPage({ searchParams }: { searchParams: Pr
       <Section title="Household settings">
         <div className="card p-4">
           <HouseholdForm name={household.name} timezone={household.timezone} timezones={COMMON_TIMEZONES} canEdit={role === "OWNER"} />
+        </div>
+      </Section>
+
+      <Section title="House rules">
+        <div id="rules" className="card p-4">
+          {role === "OWNER" ? (
+            <HouseRulesForm rules={household.rules ?? ""}
+              quietStart={household.quietStartMin != null ? minutesToHHMM(household.quietStartMin) : ""}
+              quietEnd={household.quietEndMin != null ? minutesToHHMM(household.quietEndMin) : ""} />
+          ) : (
+            <div className="space-y-3 text-sm">
+              {household.rules ? <p className="whitespace-pre-line">{household.rules}</p> : <p className="text-muted">No house rules yet. The owner can add some.</p>}
+              <p className="text-muted">{household.quietStartMin != null && household.quietEndMin != null ? `Quiet hours: ${minutesToHHMM(household.quietStartMin!)} to ${minutesToHHMM(household.quietEndMin!)}. The planner won't suggest chores then.` : "No quiet hours set."}</p>
+            </div>
+          )}
         </div>
       </Section>
 

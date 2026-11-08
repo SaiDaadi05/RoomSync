@@ -10,6 +10,9 @@ import { deleteTaskEvent, fetchBusy, googleConfigured, upsertTaskEvent } from ".
 
 export const RECENT_DAYS = 14;
 
+const quietOf = (h: { quietStartMin: number | null; quietEndMin: number | null }) =>
+  h.quietStartMin != null && h.quietEndMin != null ? { startMin: h.quietStartMin, endMin: h.quietEndMin } : null;
+
 export function weekBounds(tz: string, offset = 0) {
   const start = DateTime.now().setZone(tz).startOf("week").plus({ weeks: offset });
   return { start: start.toJSDate(), end: start.plus({ weeks: 1 }).toJSDate(), label: `${start.toFormat("LLL d")} – ${start.plus({ days: 6 }).toFormat("LLL d")}` };
@@ -118,7 +121,7 @@ export async function buildProposals(userId: string, householdId: string, range:
   const proposals = proposeSchedule(
     people,
     occs.map((o) => ({ occurrenceId: o.id, title: o.definition.title, minutes: o.definition.estimatedMinutes, dueAt: o.dueAt.getTime(), assigneeId: o.assigneeId, eligible: o.definition.eligibleUserIds })),
-    { from: from.getTime(), to: range.to.getTime(), householdTz: m.household.timezone },
+    { from: from.getTime(), to: range.to.getTime(), householdTz: m.household.timezone, quiet: quietOf(m.household) },
   );
   return { proposals, notes };
 }
@@ -139,7 +142,7 @@ export async function buildMissedProposals(userId: string, householdId: string) 
   const proposals = proposeSchedule(
     people,
     occs.map((o) => ({ occurrenceId: o.id, title: o.definition.title, minutes: o.definition.estimatedMinutes, dueAt: to.getTime(), assigneeId: o.assigneeId, eligible: o.definition.eligibleUserIds })),
-    { from: now.getTime(), to: to.getTime(), householdTz: m.household.timezone },
+    { from: now.getTime(), to: to.getTime(), householdTz: m.household.timezone, quiet: quietOf(m.household) },
   );
   return { proposals, notes };
 }

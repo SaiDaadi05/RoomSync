@@ -3,7 +3,7 @@
 import { ActionForm, SubmitButton } from "./forms";
 import { TimezoneSelect } from "./timezone-input";
 import { updatePreferencesAction } from "@/app/actions/auth";
-import { createInviteAction, leaveHouseholdAction, updateHouseholdAction } from "@/app/actions/households";
+import { createInviteAction, leaveHouseholdAction, updateHouseRulesAction, updateHouseholdAction } from "@/app/actions/households";
 
 export function PreferencesForm({ user, timezones, emailAvailable }: {
   user: { name: string; timezone: string; preferredStart: string; preferredEnd: string; notifyInApp: boolean; notifyEmail: boolean };
@@ -73,6 +73,28 @@ export function LeaveForm() {
   return (
     <ActionForm action={leaveHouseholdAction}>
       <SubmitButton className="btn-danger w-full">Leave this household</SubmitButton>
+    </ActionForm>
+  );
+}
+
+export function HouseRulesForm({ rules, quietStart, quietEnd }: { rules: string; quietStart: string; quietEnd: string }) {
+  return (
+    <ActionForm action={updateHouseRulesAction} className="space-y-4">
+      <div>
+        <label className="label" htmlFor="rules-text">House rules</label>
+        <textarea id="rules-text" name="rules" rows={5} maxLength={2000} defaultValue={rules} className="input"
+          placeholder={"e.g.\nDishes done the same night\nGuests staying over: give a day's notice\nLabel your food in the fridge"} />
+      </div>
+      <fieldset>
+        <legend className="label">Quiet hours</legend>
+        <div className="flex items-center gap-2">
+          <input aria-label="Quiet hours start" type="time" name="quietStart" defaultValue={quietStart} className="input" />
+          <span className="text-muted">to</span>
+          <input aria-label="Quiet hours end" type="time" name="quietEnd" defaultValue={quietEnd} className="input" />
+        </div>
+        <p className="mt-1 text-xs text-muted">The planner never suggests chores during quiet hours. Clear both times to turn this off.</p>
+      </fieldset>
+      <SubmitButton className="btn-secondary">Save house rules</SubmitButton>
     </ActionForm>
   );
 }

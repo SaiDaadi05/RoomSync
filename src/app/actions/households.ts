@@ -3,8 +3,9 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { DateTime } from "luxon";
+import { hhmmToMinutes } from "@/lib/time";
 import {
-  acceptInvitation, createHousehold, createInvitation, leaveHousehold, revokeInvitation, updateHousehold,
+  acceptInvitation, createHousehold, createInvitation, leaveHousehold, revokeInvitation, updateHousehold, updateHouseRules,
 } from "@/server/households";
 import { createTask } from "@/server/tasks";
 import { requireHousehold, requireUser, setCurrentHousehold } from "@/server/session";
@@ -102,4 +103,17 @@ export async function leaveHouseholdAction(_: ActionState, _fd: FormData): Promi
     return toActionError(e);
   }
   redirect("/home");
+}
+
+export async function updateHouseRulesAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const { user, household } = await requireHousehold();
+    const t = (k: string) => { const v = String(fd.get(k) ?? "").trim(); return /^\d{2}:\d{2}$/.test(v) ? hhmmToMinutes(v) : null; };
+    await updateHouseRules(user.id, household.id, { rules: fd.get("rules"), quietStartMin: t("quietStart"), quietEndMin: t("quietEnd") });
+    revalidatePath("/household");
+    revalidatePath("/planner");
+    return { ok: true, message: "House rules saved" };
+  } catch (e) {
+    return toActionError(e);
+  }
 }

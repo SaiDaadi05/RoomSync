@@ -62,6 +62,10 @@ model Household {
   currency  String   @default("USD")
   isDemo    Boolean  @default(false)
   createdAt DateTime @default(now())
+  // House rules (free text) and quiet hours (minutes after local midnight; may wrap past midnight).
+  rules          String?
+  quietStartMin  Int?
+  quietEndMin    Int?
 
   memberships   Membership[]
   invitations   Invitation[]
