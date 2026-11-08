@@ -25,6 +25,11 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
   return (
     <>
       <PageHeader title="Expenses" action={<LinkButton href="/expenses/new">+ Expense</LinkButton>} />
+      <Link href="/expenses/insights" className="card mb-4 flex items-center gap-3 p-4 hover:border-brand-200">
+        <span className="text-2xl" aria-hidden>📊</span>
+        <span className="flex-1"><span className="block font-semibold">Spending insights</span><span className="text-sm text-muted">Monthly totals, your share by category, CSV export</span></span>
+        <span className="text-brand-700" aria-hidden>→</span>
+      </Link>
 
       <div className={`card mb-4 p-5 ${mine > 0 ? "bg-emerald-50" : mine < 0 ? "bg-amber-50" : ""}`}>
         <p className="text-sm text-muted">Your balance</p>
