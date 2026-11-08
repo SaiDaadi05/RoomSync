@@ -29,7 +29,15 @@ Sample logins after `db:seed`: `alex@example.com`, `jordan@example.com`, `sam@ex
 
 ## Environment variables
 
-See `.env.example`. Required: `DATABASE_URL`, `APP_URL`, `ENCRYPTION_KEY`. Optional: `STORAGE_DIR`, `DEMO_MODE_ENABLED`, `SMTP_*`, `GOOGLE_CLIENT_ID/SECRET`.
+See `.env.example`. Required: `DATABASE_URL`, `APP_URL`, `ENCRYPTION_KEY`. Optional: `STORAGE_DIR`, `BLOB_READ_WRITE_TOKEN`, `CRON_SECRET`, `DATABASE_URL_UNPOOLED`, `DEMO_MODE_ENABLED`, `SMTP_*`, `GOOGLE_CLIENT_ID/SECRET`.
+
+## Deploying to Vercel
+
+1. **Project:** import the GitHub repo in Vercel (framework: Next.js, no build settings to change). Vercel runs `npm run vercel-build`, which generates the Prisma client, applies migrations with `prisma migrate deploy`, then builds.
+2. **Database:** add a Neon Postgres database from the Vercel Marketplace (Storage tab) and connect it to the project. It sets `DATABASE_URL` (pooled, used by the app) and `DATABASE_URL_UNPOOLED` (direct, used for migrations).
+3. **Receipts:** create a **private** Blob store (Storage tab) and connect it. It sets `BLOB_READ_WRITE_TOKEN`, which switches receipt storage from local disk to Blob.
+4. **Env vars:** set `APP_URL` (the production URL, e.g. `https://roomsync.vercel.app`), `ENCRYPTION_KEY`, `CRON_SECRET`, and `DEMO_MODE_ENABLED`. `SMTP_*` and `GOOGLE_*` are optional, as locally. For Google Calendar, add `${APP_URL}/api/calendar/google/callback` to the OAuth client's redirect URIs.
+5. **Reminders:** there's no long-running worker on Vercel. `GET /api/cron/reminders` does one worker tick. `vercel.json` schedules it daily (the Hobby plan limit), and `.github/workflows/reminders.yml` calls it every 15 minutes once the repo has `APP_URL` and `CRON_SECRET` secrets.
 
 ## Architecture
 
