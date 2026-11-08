@@ -16,19 +16,21 @@ pages, the same file will be served at `/home-preview.html`.
 
 ## Design direction
 
-- Warm off-white background, forest-green actions, sage shared-effort panel.
-- Desktop sidebar; stacked cards on mobile. System fonts, no external assets.
-- Home prioritizes today's assigned chores, shopping needs, and money owed.
+- White cards, a light-gray background, familiar blue actions, and neutral text.
+- Three section buttons on desktop and mobile: Chores, Shopping, Expenses.
+- Only one section is visible at a time. No sidebar, summary-card grid, or effort chart.
+- System fonts and no external assets.
+- Home opens to today's chores; shopping and expenses are one click away.
 - Chore completion and undo update the summary immediately.
 - Shopping claims help avoid duplicate purchases. The paper-towels shortcut
   is idempotent and reports when the item is already listed.
 - Add-chore dialog supports assignment, native validation, Escape, and focus return.
 - Text entered by a user is inserted as text, never interpreted as HTML.
-- Household, balance, and workload figures are fictional and explicitly labeled.
+- Household and balance figures are fictional and explicitly labeled.
 
 Everything is in-memory and resets on reload. There is no persistence, authentication,
 calendar integration, notification delivery, or money movement in this preview.
-The workload panel intentionally shows a fixed historical sample, not a live fairness score.
+Tab changes preserve sample interaction state until refresh or reset.
 
 ## Integration handoff
 
@@ -54,7 +56,8 @@ Reviewed base commit: `6968bfcb3d0d42d1ae0a97cae568ac2adf141c02`.
   This is not a passing integration-test run. Never bypass the test database guard.
 - DOM-level interaction checks using JSDOM passed: completion/undo, progress counts,
   duplicate prevention, claim/unclaim, literal user input, whitespace validation,
-  assignment counts, dialog close/focus-return handler, and reset. Native dialog
+  section navigation/visibility, state across tabs, dialog close/focus-return handler,
+  and reset. Native dialog
   methods were stubbed, so these checks do not validate native modal behavior.
 - Browser rendering could not run in this environment: Chromium exited because
   the environment disallows its process-singleton socket. Desktop/mobile appearance
