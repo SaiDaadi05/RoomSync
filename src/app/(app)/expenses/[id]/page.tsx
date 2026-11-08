@@ -25,6 +25,9 @@ export default async function ExpenseDetail({ params }: { params: Promise<{ id: 
         <h1 className="text-xl font-bold">{e.description}</h1>
         <p className="mt-2 text-3xl font-bold tabular-nums">{formatCents(e.amountCents, cur)}</p>
         <p className="mt-1 text-sm text-muted">Paid by <b className="text-ink">{nameOf(e.payerId)}</b> · split {e.splitMethod === "EQUAL" ? "equally" : "by custom amounts"}</p>
+        {e.recurringBillId && (
+          <p className="mt-2 text-xs text-muted">Added automatically by a <Link href={`/expenses/bills/${e.recurringBillId}`} className="font-semibold text-brand-700">recurring bill</Link>. Deleting it skips this month only.</p>
+        )}
       </div>
       <Section title="Who owes what">
         <ul className="card divide-y divide-slate-100">

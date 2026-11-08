@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireHousehold } from "@/server/session";
 import { computeBalances, listLedger } from "@/server/expenses";
+import { listBills } from "@/server/bills";
 import { activeMembers } from "@/server/access";
 import { formatCents } from "@/lib/money";
 import { todayIn } from "@/lib/time";
@@ -10,9 +11,11 @@ import { deleteSettlementAction } from "@/app/actions/money";
 
 export const metadata = { title: "Expenses" };
 
-export default async function ExpensesPage({ searchParams }: { searchParams: Promise<{ from?: string; to?: string; amount?: string }> }) {
+export default async function ExpensesPage({ searchParams }: { searchParams: Promise<{ from?: string; to?: string; amount?: string; bill?: string }> }) {
   const { user, household } = await requireHousehold();
   const sp = await searchParams;
+  // Add any recurring bills that are due before computing balances.
+  const bills = await listBills(user.id, household.id);
   const [{ balances, suggestions }, ledger, members] = await Promise.all([
     computeBalances(user.id, household.id),
     listLedger(user.id, household.id),
@@ -59,6 +62,29 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
           </ul>
         </Section>
       )}
+
+      <Section title="Recurring bills">
+        <div id="bills" className="card divide-y divide-slate-100">
+          {sp.bill && (
+            <p role="status" className="bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
+              {sp.bill === "created" ? "Recurring bill added. Any month that's already due was added to Expenses." : "Bill deleted. Months already added stay in Expenses."}
+            </p>
+          )}
+          {bills.map((b) => (
+            <Link key={b.id} href={`/expenses/bills/${b.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50">
+              <span className="text-xl" aria-hidden>{b.category === "rent" ? "🏠" : b.category === "internet" ? "📶" : b.category === "utilities" ? "💡" : "🔁"}</span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium">{b.description}</p>
+                <p className={`text-xs ${b.lastError ? "text-amber-800" : "text-muted"}`}>
+                  {b.lastError ? "Needs attention" : b.pausedAt ? "Paused" : `Every month on day ${b.dayOfMonth} · paid by ${nameOf(b.payerId).split(" ")[0]}`}
+                </p>
+              </div>
+              <span className="text-sm font-semibold tabular-nums">{formatCents(b.amountCents, cur)}</span>
+            </Link>
+          ))}
+          <div className="p-4"><Link href="/expenses/bills/new" className="text-sm font-semibold text-brand-700">+ Add a recurring bill (rent, internet, utilities)</Link></div>
+        </div>
+      </Section>
 
       <Section title="Record a payment">
         <div id="settle" className="card p-4">
