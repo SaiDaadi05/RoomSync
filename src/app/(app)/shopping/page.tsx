@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireHousehold } from "@/server/session";
-import { listShopping } from "@/server/shopping";
+import { householdStaples, listShopping } from "@/server/shopping";
 import { activeMembers } from "@/server/access";
 import { ActionForm, SubmitButton } from "@/components/forms";
 import { ShoppingBulk } from "@/components/shopping-bulk";
@@ -17,7 +17,7 @@ function hostOf(url: string) {
 
 export default async function ShoppingPage() {
   const { user, household } = await requireHousehold();
-  const [{ open, recent }, members] = await Promise.all([listShopping(user.id, household.id), activeMembers(household.id)]);
+  const [{ open, recent }, members, staples] = await Promise.all([listShopping(user.id, household.id), activeMembers(household.id), householdStaples(user.id, household.id)]);
   const nameOf = (id: string | null) => members.find((m) => m.id === id)?.name ?? "Someone";
 
   return (
@@ -42,6 +42,20 @@ export default async function ShoppingPage() {
           </details>
         </ActionForm>
       </div>
+
+      {staples.length > 0 && (
+        <section aria-labelledby="staples-title" className="mb-6">
+          <h2 id="staples-title" className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Running low? One tap adds it back</h2>
+          <div className="flex flex-wrap gap-2">
+            {staples.map((st) => (
+              <form key={st.itemId} action={restockItemAction}>
+                <input type="hidden" name="id" value={st.itemId} />
+                <button className="chip border border-slate-200 bg-white px-3 py-1.5 text-sm hover:border-brand-300" aria-label={`Add ${st.name} back to the list`}>+ {st.name}</button>
+              </form>
+            ))}
+          </div>
+        </section>
+      )}
 
       <Section title={`Needed · ${open.length}`}>
         {open.length === 0 ? (
