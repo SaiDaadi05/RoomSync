@@ -6,9 +6,9 @@ import { activeMembers } from "@/server/access";
 import { computeBalances } from "@/server/expenses";
 import { listShopping } from "@/server/shopping";
 import { formatCents } from "@/lib/money";
-import { TaskList } from "@/components/task-row";
+import { CategoryIcon, TaskList } from "@/components/task-row";
 import { QuickAddTask } from "@/components/quick-add";
-import { EmptyState, LinkButton, Section } from "@/components/ui";
+import { Avatar, EmptyState, LinkButton, Section } from "@/components/ui";
 
 export const metadata = { title: "Home" };
 
@@ -19,11 +19,12 @@ export default async function HomePage() {
   const tz = household.timezone;
   const cur = household.currency;
   const now = DateTime.now().setZone(tz);
-  const [pending, members, { balances, suggestions }, { open }] = await Promise.all([
+  const [pending, members, { balances, suggestions }, { open }, recentDone] = await Promise.all([
     listOccurrences(user.id, household.id, { status: "PENDING", to: now.plus({ days: 7 }).endOf("day").toJSDate() }),
     activeMembers(household.id),
     computeBalances(user.id, household.id),
     listShopping(user.id, household.id),
+    listOccurrences(user.id, household.id, { status: "DONE", from: now.minus({ days: 14 }).toJSDate(), take: 30 }),
   ]);
   const nowJs = now.toJSDate();
   const endToday = now.endOf("day").toJSDate();
@@ -67,77 +68,157 @@ export default async function HomePage() {
   const moneyLabel = !firstPayment ? "Money" : firstPayment.fromUserId === user.id ? `You owe ${nameOf(firstPayment.toUserId)}` : `${nameOf(firstPayment.fromUserId)} owes you`;
   const moneyValue = !firstPayment ? "All square" : formatCents(firstPayment.amountCents, cur);
 
+  const totalMin = workload.reduce((t, w) => t + w.minutes, 0) || 1;
+  const activity = recentDone
+    .filter((o) => o.completedAt && o.completedById)
+    .sort((x, y) => y.completedAt!.getTime() - x.completedAt!.getTime())
+    .slice(0, 5);
+  const ago = (d: Date) => DateTime.fromJSDate(d).setZone(tz).toRelative({ base: now }) ?? "";
+
   return (
-    <>
-      <div className="mb-5">
-        <p className="text-sm font-semibold text-muted">{now.toFormat("cccc, LLLL d")}</p>
-        <h1 className="mt-0.5 text-[1.9rem] font-extrabold leading-tight">{greeting}, {firstName(user.name)}</h1>
-        <p className="mt-1 text-[15px] text-muted">{headline}</p>
-      </div>
-
-      <div className="mb-6 grid grid-cols-2 gap-3">
-        <Link href="/expenses" className="block min-w-0 rounded-[20px] bg-ink p-4 text-white transition active:scale-[.98]">
-          <span className="block truncate text-xs font-semibold text-white/75">{moneyLabel}</span>
-          <span className="mt-0.5 block text-xl font-extrabold">{moneyValue}</span>
-          {myPayments.length > 1 && <span className="mt-0.5 block text-xs text-white/75">+{myPayments.length - 1} more</span>}
-        </Link>
-        <Link href="/shopping" className="card block min-w-0 p-4 transition active:scale-[.98]">
-          <span className="block text-xs font-semibold text-muted">Shopping list</span>
-          <span className="mt-0.5 block text-xl font-extrabold">{open.length === 0 ? "All stocked" : plural(open.length, "thing")}</span>
-          {myShopping > 0 && <span className="mt-0.5 block text-xs font-semibold text-peach-700">You're getting {myShopping}</span>}
-        </Link>
-      </div>
-
-      <div className="mb-8"><QuickAddTask /></div>
-
-      {members.length === 1 && (
-        <div className="mb-8 flex items-center gap-3 rounded-[20px] bg-peach-100 p-4">
-          <p className="flex-1 text-sm"><b>Home is better together.</b> Invite your roommates so chores and costs get shared fairly.</p>
-          <LinkButton href="/household#invite" variant="peach">Invite</LinkButton>
+    <div data-wide>
+      {/* Hero: who you are today, at a glance */}
+      <div className="relative mb-6 overflow-hidden rounded-[28px] bg-ink px-5 pb-5 pt-6 text-white md:px-8 md:pb-7 md:pt-8">
+        <HouseArt className="pointer-events-none absolute right-2 top-3 h-24 w-24 md:-bottom-3 md:right-6 md:top-auto md:h-52 md:w-52" />
+        <div className="relative max-w-[calc(100%-5.5rem)] md:max-w-[60%]">
+          <p className="text-sm font-semibold text-white/60">{now.toFormat("cccc, LLLL d")}</p>
+          <h1 className="mt-1 text-[1.9rem] font-extrabold leading-[1.1] md:text-[2.6rem]">{greeting}, {firstName(user.name)} <span aria-hidden>👋</span></h1>
+          <p className="mt-2 text-[15px] text-white/75 md:text-lg">{headline}</p>
         </div>
-      )}
+        <div className="relative mt-5 grid grid-cols-3 gap-2 md:flex md:flex-wrap">
+          <Link href="/expenses" className="rounded-2xl bg-peach-400 min-w-0 px-3 py-2.5 transition hover:bg-peach-500 md:px-4">
+            <span className="block truncate text-xs font-semibold text-white/85">{moneyLabel}</span>
+            <span className="block truncate text-base font-extrabold leading-tight md:text-lg">{moneyValue}</span>
+          </Link>
+          <Link href="/shopping" className="rounded-2xl bg-white/10 min-w-0 px-3 py-2.5 transition hover:bg-white/15 md:px-4">
+            <span className="block truncate text-xs font-semibold text-white/60">To buy</span>
+            <span className="block truncate text-base font-extrabold leading-tight md:text-lg">{open.length === 0 ? "All stocked" : plural(open.length, "thing")}</span>
+          </Link>
+          <Link href="/tasks" className="rounded-2xl bg-white/10 min-w-0 px-3 py-2.5 transition hover:bg-white/15 md:px-4">
+            <span className="block truncate text-xs font-semibold text-white/60">Up for grabs</span>
+            <span className="block truncate text-base font-extrabold leading-tight md:text-lg">{plural(new Set(upForGrabs.map((o) => o.definitionId)).size, "chore")}</span>
+          </Link>
+        </div>
+      </div>
 
-      <Section title="Your turn" action={<Link href="/tasks" className="text-sm font-bold text-ink">All chores</Link>}>
-        {mineNow.length === 0 ? (
-          <EmptyState icon="☕" title="Nothing on your plate today" body={upForGrabs.length > 0 ? "Feeling helpful? There's something up for grabs below." : "Put your feet up. We'll tell you when something comes up."} />
-        ) : (
-          <TaskList items={mineNow} members={members} tz={tz} currentUserId={user.id} collapseRepeats />
-        )}
-      </Section>
+      <div className="grid grid-cols-1 gap-x-8 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="min-w-0">
+          <div className="mb-8"><QuickAddTask /></div>
 
-      {upForGrabs.length > 0 && (
-        <Section title="Up for grabs" hint="Nobody's on these yet. Claim one and it's yours.">
-          <TaskList items={upForGrabs} members={members} tz={tz} currentUserId={user.id} collapseRepeats />
-        </Section>
-      )}
+          {members.length === 1 && (
+            <div className="mb-8 flex items-center gap-3 rounded-[20px] bg-peach-100 p-4">
+              <p className="flex-1 text-sm"><b>Home is better together.</b> Invite your roommates so chores and costs get shared fairly.</p>
+              <LinkButton href="/household#invite" variant="peach">Invite</LinkButton>
+            </div>
+          )}
 
-      {upcoming.length > 0 && (
-        <Section title="Coming up for you">
-          <TaskList items={upcoming} members={members} tz={tz} currentUserId={user.id} />
-        </Section>
-      )}
-
-      {members.length > 1 && (
-        <Section title="Fair share this week" hint={balanced ? "Nicely balanced. Nobody's carrying the house." : `${busiest!.id === user.id ? "You have" : `${firstName(busiest!.name)} has`} the most on their plate right now.`}>
-          <div className="card space-y-3.5 p-4">
-            {workload.map((w) => (
-              <div key={w.id} className="flex items-center gap-3">
-                <span className="w-16 truncate text-sm font-bold">{w.id === user.id ? "You" : firstName(w.name)}</span>
-                <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-slate-100" aria-hidden>
-                  <div className={`h-full rounded-full ${w.id === user.id ? "bg-peach-400" : "bg-ink"}`} style={{ width: `${Math.max(4, (w.minutes / maxMin) * 100)}%` }} />
-                </div>
-                <span className="w-14 text-right text-sm font-bold tabular-nums">{w.minutes}m</span>
-              </div>
-            ))}
-            {othersLate.length > 0 && (
-              <p className="border-t border-slate-200 pt-3 text-sm text-muted">
-                <b className="text-peach-500">Running behind:</b> {othersLate.map((m) => `${firstName(m.name)} (${m.late})`).join(", ")}
-              </p>
+          <Section title="Your turn" action={<Link href="/tasks" className="text-sm font-bold text-peach-700">All chores →</Link>}>
+            {mineNow.length === 0 ? (
+              <EmptyState icon="☕" title="Nothing on your plate today" body={upForGrabs.length > 0 ? "Feeling helpful? There's something up for grabs below." : "Put your feet up. We'll tell you when something comes up."} />
+            ) : (
+              <TaskList items={mineNow} members={members} tz={tz} currentUserId={user.id} collapseRepeats />
             )}
-            <p className="text-xs text-muted">Estimated minutes of chores for the next 7 days. <Link href="/planner" className="font-bold text-ink underline underline-offset-2">Even it out in the planner</Link></p>
-          </div>
-        </Section>
-      )}
-    </>
+          </Section>
+
+          {upForGrabs.length > 0 && (
+            <Section title="Up for grabs" hint="Nobody's on these yet. Claim one and it's yours.">
+              <TaskList items={upForGrabs} members={members} tz={tz} currentUserId={user.id} collapseRepeats />
+            </Section>
+          )}
+
+          {upcoming.length > 0 && (
+            <Section title="Coming up for you">
+              <TaskList items={upcoming} members={members} tz={tz} currentUserId={user.id} />
+            </Section>
+          )}
+        </div>
+
+        <aside className="min-w-0">
+          {members.length > 1 && (
+            <Section title="Who's doing what" hint={balanced ? "Nicely balanced this week." : `${busiest!.id === user.id ? "You have" : `${firstName(busiest!.name)} has`} the most on their plate.`}>
+              <div className="card p-4">
+                <div className="mb-4 flex h-3 overflow-hidden rounded-full" aria-hidden>
+                  {workload.map((w, i) => (
+                    <div key={w.id} className={["bg-peach-400", "bg-ink", "bg-amber-400", "bg-sky-400", "bg-emerald-400", "bg-violet-400"][i % 6]} style={{ width: `${(w.minutes / totalMin) * 100}%` }} />
+                  ))}
+                </div>
+                <ul className="space-y-3">
+                  {workload.map((w, i) => {
+                    const late = othersLate.find((m) => m.id === w.id)?.late ?? 0;
+                    return (
+                      <li key={w.id} className="flex items-center gap-3">
+                        <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${["bg-peach-400", "bg-ink", "bg-amber-400", "bg-sky-400", "bg-emerald-400", "bg-violet-400"][i % 6]}`} aria-hidden />
+                        <Avatar id={w.id} name={w.name} size="sm" />
+                        <span className="min-w-0 flex-1 truncate text-sm font-bold">
+                          {w.id === user.id ? "You" : firstName(w.name)}
+                          {late > 0 && <span className="ml-1.5 text-xs font-semibold text-peach-700">{late} late</span>}
+                        </span>
+                        <span className="text-sm font-extrabold tabular-nums">{Math.round((w.minutes / totalMin) * 100)}%</span>
+                        <span className="w-12 text-right text-xs tabular-nums text-muted">{w.minutes}m</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <p className="mt-4 border-t border-slate-200 pt-3 text-xs text-muted">Share of estimated chore time, next 7 days. <Link href="/planner" className="font-bold text-ink underline underline-offset-2">Even it out</Link></p>
+              </div>
+            </Section>
+          )}
+
+          <Section title="Shopping list" action={<Link href="/shopping" className="text-sm font-bold text-peach-700">Open →</Link>}>
+            <div className="card p-4">
+              {open.length === 0 ? (
+                <p className="text-sm text-muted">Nothing needed right now. Add things as they run low.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {open.slice(0, 5).map((i) => (
+                    <li key={i.id} className="flex items-center gap-3 text-sm">
+                      <span className="h-2 w-2 shrink-0 rounded-full bg-peach-400" aria-hidden />
+                      <span className="min-w-0 flex-1 truncate font-semibold">{i.name}</span>
+                      {i.claimedById && <span className="text-xs text-muted">{i.claimedById === user.id ? "you're getting it" : `${nameOf(i.claimedById)}'s getting it`}</span>}
+                    </li>
+                  ))}
+                  {open.length > 5 && <li className="pl-5 text-xs font-semibold text-muted">+ {open.length - 5} more</li>}
+                </ul>
+              )}
+              {myShopping > 0 && <p className="mt-3 text-xs font-semibold text-peach-700">You said you'd pick up {myShopping}.</p>}
+            </div>
+          </Section>
+
+          {activity.length > 0 && (
+            <Section title="Recently done">
+              <ul className="card divide-y divide-slate-200">
+                {activity.map((o) => (
+                  <li key={o.id} className="flex items-center gap-3 px-4 py-3">
+                    <CategoryIcon category={o.definition.category} className="h-9 w-9" />
+                    <p className="min-w-0 flex-1 text-sm">
+                      <b>{o.completedById === user.id ? "You" : nameOf(o.completedById!)}</b> did <span className="font-semibold">{o.definition.title.toLowerCase()}</span>
+                      <span className="block text-xs text-muted">{ago(o.completedAt!)}</span>
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          )}
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+/** Little illustrated house for the Home hero: navy-on-navy with coral roof and lit windows. */
+function HouseArt({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 200 200" className={className} aria-hidden>
+      <circle cx="150" cy="48" r="18" fill="#ffd8a8" />
+      <path d="M30 100 100 42l70 58" fill="#ff6b4a" />
+      <path d="M44 96h112v96H44z" fill="#2c3c63" />
+      <path d="M30 100 100 42l70 58" fill="none" stroke="#ff6b4a" strokeWidth="14" strokeLinejoin="round" strokeLinecap="round" />
+      <rect x="62" y="114" width="28" height="26" rx="5" fill="#ffd8a8" />
+      <rect x="110" y="114" width="28" height="26" rx="5" fill="#ffd8a8" />
+      <path d="M76 114v26M62 127h28M124 114v26M110 127h28" stroke="#2c3c63" strokeWidth="3" />
+      <rect x="86" y="152" width="28" height="40" rx="6" fill="#ff6b4a" />
+      <circle cx="107" cy="173" r="2.5" fill="#14213d" />
+      <path d="M128 62V44h14v30" fill="#2c3c63" />
+    </svg>
   );
 }

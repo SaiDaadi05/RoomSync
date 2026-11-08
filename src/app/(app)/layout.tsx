@@ -12,7 +12,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="min-h-dvh pb-24 md:pb-10">
       {household.isDemo && <DemoBanner />}
       <header className="sticky top-0 z-20 bg-canvas/90 backdrop-blur">
-        <div className="mx-auto flex max-w-4xl items-center gap-3 px-4 py-2.5">
+        <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-2.5 md:px-6">
           <Link href="/home" className="flex items-center gap-2" aria-label="RoomSync home">
             <Logo />
           </Link>
@@ -34,7 +34,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-3xl px-4 py-6">{children}</main>
+      {/* Pages are a comfortable reading width; a page can opt into the full width with data-wide (Home does). */}
+      <main className="mx-auto max-w-3xl px-4 py-6 has-[[data-wide]]:max-w-6xl md:px-6">{children}</main>
       <BottomNav />
     </div>
   );
