@@ -73,6 +73,7 @@ Two agents work on this repo (Claude and Codex), driven by different people. The
 | Area | Owner | Branch / PR | Notes |
 |---|---|---|---|
 | App foundation (all 5 stages, first pass) | Claude | `claude/app-foundation` / #2 | Awaiting review |
+| PWA: install + offline shell (part of #9) | Claude | `claude/pwa` (stacked on #2) | Awaiting review |
 
 ### Done
 
