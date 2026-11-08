@@ -72,13 +72,13 @@ export default async function HomePage() {
       )}
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Link href="/shopping" className="card block p-4 hover:border-brand-200">
+        <Link href="/shopping" className="card block min-w-0 p-4 hover:border-brand-200">
           <p className="text-sm font-semibold text-muted">🛒 Shopping</p>
           <p className="mt-1 text-lg font-bold">{open.length === 0 ? "Nothing needed" : `${open.length} item${open.length === 1 ? "" : "s"} needed`}</p>
           {open.length > 0 && <p className="mt-1 truncate text-sm text-muted">{open.slice(0, 4).map((i) => i.name).join(", ")}{open.length > 4 ? "…" : ""}</p>}
           {open.some((i) => i.claimedById === user.id) && <p className="mt-1 text-xs font-medium text-emerald-700">You said you'd buy {open.filter((i) => i.claimedById === user.id).length}</p>}
         </Link>
-        <Link href="/expenses" className="card block p-4 hover:border-brand-200">
+        <Link href="/expenses" className="card block min-w-0 p-4 hover:border-brand-200">
           <p className="text-sm font-semibold text-muted">💸 Balance</p>
           <p className={`mt-1 text-lg font-bold ${myBalance > 0 ? "text-emerald-700" : myBalance < 0 ? "text-amber-800" : ""}`}>
             {myBalance === 0 ? "All settled up" : myBalance > 0 ? `You're owed ${formatCents(myBalance, household.currency)}` : `You owe ${formatCents(-myBalance, household.currency)}`}
@@ -86,6 +86,12 @@ export default async function HomePage() {
           <p className="mt-1 text-sm text-muted">Tap to see who owes whom</p>
         </Link>
       </div>
+
+      <Link href="/recap" className="card mt-4 flex items-center gap-3 p-4 hover:border-brand-200">
+        <span className="text-2xl" aria-hidden>📅</span>
+        <span className="flex-1"><span className="block font-semibold">Weekly recap</span><span className="text-sm text-muted">Who did what, what you spent, and what's next</span></span>
+        <span className="text-brand-700" aria-hidden>→</span>
+      </Link>
 
       {members.length > 1 && (
         <Section title="Workload next 7 days">
