@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "./db";
 import { activeMembers, requireMember, requireOwner } from "./access";
 import { AppError, invalid } from "./errors";
+import { leaveAndRelease } from "./members";
 import { isValidTimezone } from "@/lib/time";
 
 const householdSchema = z.object({
@@ -102,7 +103,7 @@ export async function acceptInvitation(userId: string, codeRaw: string) {
     });
     if (existing && !existing.leftAt) throw new AppError("You're already in this household", "CONFLICT");
     if (existing) {
-      await tx.membership.update({ where: { id: existing.id }, data: { leftAt: null, joinedAt: new Date() } });
+      await tx.membership.update({ where: { id: existing.id }, data: { leftAt: null, joinedAt: new Date(), role: "MEMBER" } });
     } else {
       await tx.membership.create({ data: { householdId: inv.householdId, userId, role: "MEMBER" } });
     }
@@ -125,5 +126,5 @@ export async function leaveHousehold(userId: string, householdId: string) {
     const others = await prisma.membership.count({ where: { householdId, leftAt: null, userId: { not: userId } } });
     if (others > 0 && otherOwners === 0) throw invalid("Make another roommate an owner before leaving");
   }
-  await prisma.membership.update({ where: { id: m.id }, data: { leftAt: new Date() } });
+  await leaveAndRelease(userId, householdId);
 }

@@ -69,10 +69,17 @@ export function InviteForm() {
   );
 }
 
-export function LeaveForm() {
+export function LeaveForm({ openTasks = 0 }: { openTasks?: number }) {
   return (
-    <ActionForm action={leaveHouseholdAction}>
-      <SubmitButton className="btn-danger w-full">Leave this household</SubmitButton>
-    </ActionForm>
+    <details className="card p-4">
+      <summary className="cursor-pointer list-none text-center text-sm font-semibold text-red-700">Leave this household…</summary>
+      <ActionForm action={leaveHouseholdAction} className="mt-3 space-y-3">
+        <p className="text-sm text-slate-700">
+          {openTasks > 0 ? `Your ${openTasks} open ${openTasks === 1 ? "task" : "tasks"} will become unassigned and your roommates will be told. ` : ""}
+          Your completed chores, expenses, and balances stay in the household history. You can rejoin later with a new invite.
+        </p>
+        <SubmitButton className="btn-danger w-full" pendingText="Leaving…">Yes, leave</SubmitButton>
+      </ActionForm>
+    </details>
   );
 }

@@ -6,6 +6,8 @@ import { prisma } from "@/server/db";
 import { COMMON_TIMEZONES, minutesToHHMM } from "@/lib/time";
 import { Avatar, Badge, PageHeader, Section } from "@/components/ui";
 import { CopyButton } from "@/components/copy-button";
+import { MemberActions } from "@/components/member-actions";
+import { openTaskCounts } from "@/server/members";
 import { HouseholdForm, InviteForm, LeaveForm, PreferencesForm } from "@/components/settings-forms";
 import { revokeInviteAction } from "@/app/actions/households";
 import { logoutAction } from "@/app/actions/auth";
@@ -14,14 +16,16 @@ import { disconnectCalendarAction } from "@/app/actions/planner";
 
 export const metadata = { title: "Household & settings" };
 
-export default async function HouseholdPage({ searchParams }: { searchParams: Promise<{ calendar?: string }> }) {
+export default async function HouseholdPage({ searchParams }: { searchParams: Promise<{ calendar?: string; member?: string; released?: string }> }) {
   const { user, household } = await requireHousehold();
   const sp = await searchParams;
-  const [{ members, role }, invites, connections] = await Promise.all([
+  const [{ members, role }, invites, connections, openCounts] = await Promise.all([
     getHouseholdOverview(user.id, household.id),
     listInvitations(user.id, household.id),
     prisma.calendarConnection.findMany({ where: { userId: user.id }, select: { id: true, provider: true, status: true, accountEmail: true, lastSyncAt: true, lastError: true } }),
+    openTaskCounts(user.id, household.id),
   ]);
+  const released = Number(sp.released ?? 0);
   const appUrl = process.env.APP_URL ?? "http://localhost:3000";
   const google = connections.find((c) => c.provider === "GOOGLE");
 
@@ -30,18 +34,32 @@ export default async function HouseholdPage({ searchParams }: { searchParams: Pr
       <PageHeader title="Household" subtitle={household.name} />
 
       <Section title={`Roommates · ${members.length}`}>
-        <ul className="card divide-y divide-slate-100">
-          {members.map((m) => (
-            <li key={m.id} className="flex items-center gap-3 px-4 py-3">
-              <Avatar id={m.id} name={m.name} />
-              <div className="flex-1">
-                <p className="font-medium">{m.name}{m.id === user.id && " (you)"}</p>
-                <p className="text-xs text-muted">{m.email}</p>
-              </div>
-              {m.role === "OWNER" && <Badge tone="blue">Owner</Badge>}
-            </li>
-          ))}
-        </ul>
+        <div id="roommates" className="card divide-y divide-slate-100">
+          {sp.member === "removed" && (
+            <p role="status" className="bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
+              Roommate removed.{released > 0 && <> {released} open {released === 1 ? "task is" : "tasks are"} now unassigned. <Link href="/tasks?view=open" className="font-semibold underline">Pick them up →</Link></>}
+            </p>
+          )}
+          <ul className="divide-y divide-slate-100">
+            {members.map((m) => (
+              <li key={m.id} className="px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <Avatar id={m.id} name={m.name} />
+                  <div className="flex-1">
+                    <p className="font-medium">{m.name}{m.id === user.id && " (you)"}</p>
+                    <p className="text-xs text-muted">{m.email}</p>
+                  </div>
+                  {m.role === "OWNER" && <Badge tone="blue">Owner</Badge>}
+                </div>
+                {role === "OWNER" && (members.length > 1 || m.id !== user.id) && (
+                  <div className="mt-2 pl-12">
+                    <MemberActions member={{ id: m.id, name: m.name, role: m.role }} openTasks={openCounts.get(m.id) ?? 0} isSelf={m.id === user.id} />
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
       </Section>
 
       <Section title="Invite roommates">
@@ -123,7 +141,7 @@ export default async function HouseholdPage({ searchParams }: { searchParams: Pr
       <div className="space-y-3">
         <Link href="/onboarding" className="btn-secondary w-full">Create or join another household</Link>
         <form action={logoutAction}><button className="btn-secondary w-full">Log out</button></form>
-        <LeaveForm />
+        <LeaveForm openTasks={openCounts.get(user.id) ?? 0} />
       </div>
     </>
   );

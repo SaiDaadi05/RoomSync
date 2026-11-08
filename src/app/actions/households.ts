@@ -7,6 +7,7 @@ import {
   acceptInvitation, createHousehold, createInvitation, leaveHousehold, revokeInvitation, updateHousehold,
 } from "@/server/households";
 import { createTask } from "@/server/tasks";
+import { removeMember, setMemberRole } from "@/server/members";
 import { requireHousehold, requireUser, setCurrentHousehold } from "@/server/session";
 import { toActionError, type ActionState } from "@/server/action";
 import { STARTER_CHORES } from "@/lib/starter-chores";
@@ -102,4 +103,30 @@ export async function leaveHouseholdAction(_: ActionState, _fd: FormData): Promi
     return toActionError(e);
   }
   redirect("/home");
+}
+
+export async function removeMemberAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  let released = 0;
+  try {
+    const { user, household } = await requireHousehold();
+    const r = await removeMember(user.id, household.id, String(fd.get("memberId") ?? ""));
+    released = r.releasedOccurrences;
+  } catch (e) {
+    return toActionError(e);
+  }
+  // The removed row disappears, so report the result on the page instead of inside the form.
+  revalidatePath("/", "layout");
+  redirect(`/household?member=removed&released=${released}#roommates`);
+}
+
+export async function setMemberRoleAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const { user, household } = await requireHousehold();
+    const role = fd.get("role") === "OWNER" ? "OWNER" : "MEMBER";
+    await setMemberRole(user.id, household.id, String(fd.get("memberId") ?? ""), role);
+    revalidatePath("/household");
+    return { ok: true, message: role === "OWNER" ? "They're now an owner." : "They're now a regular member." };
+  } catch (e) {
+    return toActionError(e);
+  }
 }
