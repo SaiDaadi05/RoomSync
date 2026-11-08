@@ -11,7 +11,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-dvh pb-24 md:pb-10">
       {household.isDemo && <DemoBanner />}
-      <header className="sticky top-0 z-20 bg-canvas/90 backdrop-blur">
+      <header className="sticky top-0 z-20 border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-2.5 md:px-6">
           <Link href="/home" className="flex items-center gap-2" aria-label="RoomSync home">
             <Logo />
@@ -19,12 +19,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           {households.length > 1 ? (
             <HouseholdSwitcher current={household.id} households={households.map((h) => ({ id: h.id, name: h.name }))} />
           ) : (
-            <Link href="/household" className="min-w-0 truncate font-extrabold tracking-tight">{household.name}</Link>
+            <Link href="/household" className="min-w-0 truncate font-semibold">{household.name}</Link>
           )}
           <div className="ml-auto flex items-center gap-1">
             <TopNav />
             <PlannerShortcut />
-            <Link href="/notifications" className="relative rounded-xl p-2 text-ink hover:bg-slate-100" aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`}>
+            <Link href="/notifications" className="relative rounded-full p-2 text-ink hover:bg-slate-100" aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`}>
               <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden><path d="M6 16V11a6 6 0 1 1 12 0v5l2 2H4zM10 20a2 2 0 0 0 4 0" strokeLinecap="round" strokeLinejoin="round" /></svg>
               {unread > 0 && <span className="absolute right-1 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-peach-400 px-1 text-[10px] font-bold text-white">{unread > 9 ? "9+" : unread}</span>}
             </Link>

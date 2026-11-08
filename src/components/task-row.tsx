@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { TaskDefinition, TaskOccurrence } from "@prisma/client";
-import { Avatar, Badge } from "./ui";
+import { Badge } from "./ui";
 import { completeAction, reopenAction, claimAction } from "@/app/actions/tasks";
 import { formatDue } from "@/lib/time";
 
@@ -27,7 +27,7 @@ const CATEGORY_STYLE: Record<string, { tone: string; d: string }> = {
 export function CategoryIcon({ category, className = "h-10 w-10" }: { category: string; className?: string }) {
   const c = CATEGORY_STYLE[category] ?? CATEGORY_STYLE.other!;
   return (
-    <span className={`flex shrink-0 items-center justify-center rounded-xl ${c.tone} ${className}`} aria-hidden>
+    <span className={`flex shrink-0 items-center justify-center rounded-full ${c.tone} ${className}`} aria-hidden>
       <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d={c.d} /></svg>
     </span>
   );
@@ -37,54 +37,46 @@ export function TaskRow({ occ, members, tz, currentUserId, alsoMissed = 0 }: { o
   const assignee = members.find((m) => m.id === occ.assigneeId);
   const overdue = occ.status === "PENDING" && occ.dueAt < new Date();
   const done = occ.status === "DONE";
+  const mine = occ.assigneeId === currentUserId;
   return (
-    <li className="relative flex items-center gap-3 py-3 pl-4 pr-4">
-      {occ.status === "PENDING" && (
-        <span aria-hidden className={`absolute inset-y-2 left-0 w-1 rounded-r-full ${overdue ? "bg-peach-400" : occ.dueAt.getTime() - Date.now() < 24 * 3600e3 ? "bg-amber-400" : "bg-emerald-400"}`} />
-      )}
-      {occ.status === "PENDING" ? (
-        <form action={completeAction}>
-          <input type="hidden" name="occurrenceId" value={occ.id} />
-          <button aria-label={`Mark “${occ.definition.title}” done`}
-            className="flex h-8 w-8 items-center justify-center rounded-[10px] border-2 border-ink bg-white text-transparent transition hover:bg-peach-50 hover:text-peach-400 active:scale-95">
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={3} aria-hidden><path d="m5 12 5 5 9-10" /></svg>
-          </button>
-        </form>
-      ) : (
-        <form action={reopenAction}>
-          <input type="hidden" name="occurrenceId" value={occ.id} />
-          <button aria-label={`Undo “${occ.definition.title}”`} title="Undo"
-            className={`flex h-8 w-8 items-center justify-center rounded-[10px] ${done ? "bg-peach-400 text-white" : "bg-slate-200 text-slate-600"}`}>
-            {done ? <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={3} aria-hidden><path d="m5 12 5 5 9-10" /></svg> : "–"}
-          </button>
-        </form>
-      )}
-      <CategoryIcon category={occ.definition.category} />
+    <li className="flex items-center gap-3.5 py-3.5">
+      <CategoryIcon category={occ.definition.category} className="h-11 w-11" />
       <Link href={`/tasks/${occ.definitionId}`} className="min-w-0 flex-1">
-        <p className={`truncate text-[15px] font-bold ${occ.status !== "PENDING" ? "text-slate-400 line-through" : ""}`}>
+        <p className={`truncate text-[16px] font-semibold ${occ.status !== "PENDING" ? "text-slate-500 line-through" : ""}`}>
           {occ.definition.title}
         </p>
-        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted">
-          <span className={overdue ? "font-bold text-peach-500" : ""}>{overdue ? "Was due " : ""}{formatDue(occ.dueAt, tz)}</span>
-          <span>~{occ.definition.estimatedMinutes} min</span>
-          {occ.status === "SKIPPED" && <Badge>Skipped</Badge>}
+        <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-sm text-muted">
+          <span className={overdue ? "text-peach-700" : ""}>{overdue ? "Was due " : ""}{formatDue(occ.dueAt, tz)}</span>
+          <span aria-hidden>·</span>
+          <span>{occ.definition.estimatedMinutes} min</span>
           {occ.definition.recurrence !== "NONE" && <span aria-label="Repeats">↻</span>}
+          {assignee && !mine && <span>· {assignee.name.split(" ")[0]}</span>}
+          {occ.status === "SKIPPED" && <Badge>Skipped</Badge>}
           {alsoMissed > 0 && <Badge tone="red">+{alsoMissed} earlier missed</Badge>}
           {occ.definition.kind === "ERRAND" && <Badge tone="violet">Errand</Badge>}
         </p>
       </Link>
-      {assignee ? (
-        <Avatar id={assignee.id} name={assignee.name} size="sm" />
-      ) : occ.status === "PENDING" ? (
+      {occ.status !== "PENDING" ? (
+        <form action={reopenAction}>
+          <input type="hidden" name="occurrenceId" value={occ.id} />
+          <button aria-label={`Undo “${occ.definition.title}”`} className="btn min-h-9 rounded-lg px-3 text-sm text-muted underline underline-offset-4 hover:text-ink">
+            {done ? "✓ Done" : "Skipped"} · Undo
+          </button>
+        </form>
+      ) : !assignee ? (
         <form action={claimAction}>
           <input type="hidden" name="occurrenceId" value={occ.id} />
-          <button className="btn-peach min-h-8 whitespace-nowrap rounded-full px-3.5 py-1 text-xs">I'll do it</button>
+          <button className="btn-peach min-h-9 whitespace-nowrap px-3.5 text-sm">I'll do it</button>
         </form>
-      ) : null}
+      ) : (
+        <form action={completeAction}>
+          <input type="hidden" name="occurrenceId" value={occ.id} />
+          <button aria-label={`Mark “${occ.definition.title}” done`} className="btn-secondary min-h-9 whitespace-nowrap px-3.5 text-sm">Done</button>
+        </form>
+      )}
       {done && occ.completedById && occ.completedById !== occ.assigneeId && (
         <span className="sr-only">Completed by {members.find((m) => m.id === occ.completedById)?.name}</span>
       )}
-      {void currentUserId}
     </li>
   );
 }
@@ -105,7 +97,7 @@ export function TaskList({ items, members, tz, currentUserId, collapseRepeats = 
     }
   } else rows.push(...items.map((occ) => ({ occ, alsoMissed: 0 })));
   return (
-    <ul className="card divide-y divide-slate-200 overflow-hidden">
+    <ul className="divide-y divide-slate-200 border-b border-slate-200">
       {rows.map(({ occ, alsoMissed }) => <TaskRow key={occ.id} occ={occ} members={members} tz={tz} currentUserId={currentUserId} alsoMissed={alsoMissed} />)}
     </ul>
   );

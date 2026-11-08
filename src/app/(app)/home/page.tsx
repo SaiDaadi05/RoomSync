@@ -77,42 +77,45 @@ export default async function HomePage() {
 
   return (
     <div data-wide>
-      {/* Hero: who you are today, at a glance */}
-      <div className="relative mb-6 overflow-hidden rounded-[28px] bg-ink px-5 pb-5 pt-6 text-white md:px-8 md:pb-7 md:pt-8">
-        <HouseArt className="pointer-events-none absolute right-2 top-3 h-24 w-24 md:-bottom-3 md:right-6 md:top-auto md:h-52 md:w-52" />
-        <div className="relative max-w-[calc(100%-5.5rem)] md:max-w-[60%]">
-          <p className="text-sm font-semibold text-white/60">{now.toFormat("cccc, LLLL d")}</p>
-          <h1 className="mt-1 text-[1.9rem] font-extrabold leading-[1.1] md:text-[2.6rem]">{greeting}, {firstName(user.name)} <span aria-hidden>👋</span></h1>
-          <p className="mt-2 text-[15px] text-white/75 md:text-lg">{headline}</p>
+      {/* Header: the day, who lives here, and the three numbers people check most */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm text-muted">{now.toFormat("cccc, LLLL d")} · {plural(members.length, "roommate")}</p>
+          <div className="flex -space-x-2" aria-label={members.map((m) => m.name).join(", ")}>
+            {members.slice(0, 5).map((m) => <Avatar key={m.id} id={m.id} name={m.name} size="sm" />)}
+          </div>
         </div>
-        <div className="relative mt-5 grid grid-cols-3 gap-2 md:flex md:flex-wrap">
-          <Link href="/expenses" className="rounded-2xl bg-peach-400 min-w-0 px-3 py-2.5 transition hover:bg-peach-500 md:px-4">
-            <span className="block truncate text-xs font-semibold text-white/85">{moneyLabel}</span>
-            <span className="block truncate text-base font-extrabold leading-tight md:text-lg">{moneyValue}</span>
-          </Link>
-          <Link href="/shopping" className="rounded-2xl bg-white/10 min-w-0 px-3 py-2.5 transition hover:bg-white/15 md:px-4">
-            <span className="block truncate text-xs font-semibold text-white/60">To buy</span>
-            <span className="block truncate text-base font-extrabold leading-tight md:text-lg">{open.length === 0 ? "All stocked" : plural(open.length, "thing")}</span>
-          </Link>
-          <Link href="/tasks" className="rounded-2xl bg-white/10 min-w-0 px-3 py-2.5 transition hover:bg-white/15 md:px-4">
-            <span className="block truncate text-xs font-semibold text-white/60">Up for grabs</span>
-            <span className="block truncate text-base font-extrabold leading-tight md:text-lg">{plural(new Set(upForGrabs.map((o) => o.definitionId)).size, "chore")}</span>
-          </Link>
-        </div>
+        <h1 className="mt-1 text-[1.9rem] font-bold leading-tight md:text-[2.25rem]">{greeting}, {firstName(user.name)}</h1>
+        <p className="mt-1 text-[15px] text-muted">{headline}</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-x-8 lg:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="mb-8 grid grid-cols-3 gap-2.5 md:max-w-2xl md:gap-3">
+        <Link href="/expenses" className="card block min-w-0 p-3 transition hover:shadow-[0_6px_16px_rgba(0,0,0,0.12)] md:p-4">
+          <span className="block truncate text-[13px] text-muted">{moneyLabel}</span>
+          <span className={`mt-0.5 block truncate text-lg font-bold md:text-xl ${firstPayment && firstPayment.fromUserId !== user.id ? "text-emerald-700" : ""}`}>{moneyValue}</span>
+        </Link>
+        <Link href="/shopping" className="card block min-w-0 p-3 transition hover:shadow-[0_6px_16px_rgba(0,0,0,0.12)] md:p-4">
+          <span className="block truncate text-[13px] text-muted">To buy</span>
+          <span className="mt-0.5 block truncate text-lg font-bold md:text-xl">{open.length === 0 ? "Nothing" : plural(open.length, "item")}</span>
+        </Link>
+        <Link href="/planner" className="card block min-w-0 p-3 transition hover:shadow-[0_6px_16px_rgba(0,0,0,0.12)] md:p-4">
+          <span className="block truncate text-[13px] text-muted">Your share</span>
+          <span className="mt-0.5 block truncate text-lg font-bold md:text-xl">{Math.round(((workload.find((w) => w.id === user.id)?.minutes ?? 0) / totalMin) * 100)}%</span>
+        </Link>
+      </div>
+
+      <div className="grid grid-cols-1 gap-x-12 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0">
           <div className="mb-8"><QuickAddTask /></div>
 
           {members.length === 1 && (
-            <div className="mb-8 flex items-center gap-3 rounded-[20px] bg-peach-100 p-4">
+            <div className="card mb-8 flex items-center gap-3 p-4">
               <p className="flex-1 text-sm"><b>Home is better together.</b> Invite your roommates so chores and costs get shared fairly.</p>
               <LinkButton href="/household#invite" variant="peach">Invite</LinkButton>
             </div>
           )}
 
-          <Section title="Your turn" action={<Link href="/tasks" className="text-sm font-bold text-peach-700">All chores →</Link>}>
+          <Section title="Your turn" action={<Link href="/tasks" className="text-sm font-semibold underline underline-offset-4">Show all</Link>}>
             {mineNow.length === 0 ? (
               <EmptyState icon="☕" title="Nothing on your plate today" body={upForGrabs.length > 0 ? "Feeling helpful? There's something up for grabs below." : "Put your feet up. We'll tell you when something comes up."} />
             ) : (
@@ -139,7 +142,7 @@ export default async function HomePage() {
               <div className="card p-4">
                 <div className="mb-4 flex h-3 overflow-hidden rounded-full" aria-hidden>
                   {workload.map((w, i) => (
-                    <div key={w.id} className={["bg-peach-400", "bg-ink", "bg-amber-400", "bg-sky-400", "bg-emerald-400", "bg-violet-400"][i % 6]} style={{ width: `${(w.minutes / totalMin) * 100}%` }} />
+                    <div key={w.id} className={(w.id === user.id ? "bg-peach-400" : ["bg-ink", "bg-slate-400", "bg-slate-300", "bg-slate-500"][i % 4])} style={{ width: `${(w.minutes / totalMin) * 100}%` }} />
                   ))}
                 </div>
                 <ul className="space-y-3">
@@ -147,40 +150,40 @@ export default async function HomePage() {
                     const late = othersLate.find((m) => m.id === w.id)?.late ?? 0;
                     return (
                       <li key={w.id} className="flex items-center gap-3">
-                        <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${["bg-peach-400", "bg-ink", "bg-amber-400", "bg-sky-400", "bg-emerald-400", "bg-violet-400"][i % 6]}`} aria-hidden />
+                        <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${(w.id === user.id ? "bg-peach-400" : ["bg-ink", "bg-slate-400", "bg-slate-300", "bg-slate-500"][i % 4])}`} aria-hidden />
                         <Avatar id={w.id} name={w.name} size="sm" />
-                        <span className="min-w-0 flex-1 truncate text-sm font-bold">
+                        <span className="min-w-0 flex-1 truncate text-sm font-semibold">
                           {w.id === user.id ? "You" : firstName(w.name)}
-                          {late > 0 && <span className="ml-1.5 text-xs font-semibold text-peach-700">{late} late</span>}
+                          {late > 0 && <span className="ml-1.5 text-xs font-normal text-peach-700">{late} late</span>}
                         </span>
-                        <span className="text-sm font-extrabold tabular-nums">{Math.round((w.minutes / totalMin) * 100)}%</span>
+                        <span className="text-sm font-semibold tabular-nums">{Math.round((w.minutes / totalMin) * 100)}%</span>
                         <span className="w-12 text-right text-xs tabular-nums text-muted">{w.minutes}m</span>
                       </li>
                     );
                   })}
                 </ul>
-                <p className="mt-4 border-t border-slate-200 pt-3 text-xs text-muted">Share of estimated chore time, next 7 days. <Link href="/planner" className="font-bold text-ink underline underline-offset-2">Even it out</Link></p>
+                <p className="mt-4 border-t border-slate-200 pt-3 text-xs text-muted">Share of estimated chore time, next 7 days. <Link href="/planner" className="font-semibold text-ink underline underline-offset-2">Even it out</Link></p>
               </div>
             </Section>
           )}
 
-          <Section title="Shopping list" action={<Link href="/shopping" className="text-sm font-bold text-peach-700">Open →</Link>}>
+          <Section title="Shopping list" action={<Link href="/shopping" className="text-sm font-semibold underline underline-offset-4">Open list</Link>}>
             <div className="card p-4">
               {open.length === 0 ? (
                 <p className="text-sm text-muted">Nothing needed right now. Add things as they run low.</p>
               ) : (
-                <ul className="space-y-2">
+                <ul className="space-y-2.5">
                   {open.slice(0, 5).map((i) => (
                     <li key={i.id} className="flex items-center gap-3 text-sm">
-                      <span className="h-2 w-2 shrink-0 rounded-full bg-peach-400" aria-hidden />
-                      <span className="min-w-0 flex-1 truncate font-semibold">{i.name}</span>
+                      <span className="h-4 w-4 shrink-0 rounded border border-slate-400" aria-hidden />
+                      <span className="min-w-0 flex-1 truncate">{i.name}</span>
                       {i.claimedById && <span className="text-xs text-muted">{i.claimedById === user.id ? "you're getting it" : `${nameOf(i.claimedById)}'s getting it`}</span>}
                     </li>
                   ))}
                   {open.length > 5 && <li className="pl-5 text-xs font-semibold text-muted">+ {open.length - 5} more</li>}
                 </ul>
               )}
-              {myShopping > 0 && <p className="mt-3 text-xs font-semibold text-peach-700">You said you'd pick up {myShopping}.</p>}
+              {myShopping > 0 && <p className="mt-3 text-xs text-muted">You said you'd pick up {myShopping}.</p>}
             </div>
           </Section>
 
@@ -202,23 +205,5 @@ export default async function HomePage() {
         </aside>
       </div>
     </div>
-  );
-}
-
-/** Little illustrated house for the Home hero: navy-on-navy with coral roof and lit windows. */
-function HouseArt({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 200 200" className={className} aria-hidden>
-      <circle cx="150" cy="48" r="18" fill="#ffd8a8" />
-      <path d="M30 100 100 42l70 58" fill="#ff6b4a" />
-      <path d="M44 96h112v96H44z" fill="#2c3c63" />
-      <path d="M30 100 100 42l70 58" fill="none" stroke="#ff6b4a" strokeWidth="14" strokeLinejoin="round" strokeLinecap="round" />
-      <rect x="62" y="114" width="28" height="26" rx="5" fill="#ffd8a8" />
-      <rect x="110" y="114" width="28" height="26" rx="5" fill="#ffd8a8" />
-      <path d="M76 114v26M62 127h28M124 114v26M110 127h28" stroke="#2c3c63" strokeWidth="3" />
-      <rect x="86" y="152" width="28" height="40" rx="6" fill="#ff6b4a" />
-      <circle cx="107" cy="173" r="2.5" fill="#14213d" />
-      <path d="M128 62V44h14v30" fill="#2c3c63" />
-    </svg>
   );
 }

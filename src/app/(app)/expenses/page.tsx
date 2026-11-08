@@ -28,9 +28,9 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
     <>
       <PageHeader title="Money" subtitle="Shared costs and who owes whom" action={<LinkButton href="/expenses/new">+ Add a cost</LinkButton>} />
 
-      <div className={`card mb-7 p-5 ${mine > 0 ? "!bg-emerald-700 text-white" : mine < 0 ? "!bg-ink text-white" : ""}`}>
-        <p className="text-sm font-semibold opacity-75">Your balance</p>
-        <p className="text-3xl font-extrabold tracking-tight">
+      <div className={`card mb-7 p-5 `}>
+        <p className="text-sm text-muted">Your balance</p>
+        <p className={`text-3xl font-bold tracking-tight ${mine > 0 ? "text-emerald-700" : ""}`}>
           {mine === 0 ? "You're all square 🎉" : mine > 0 ? `You're owed ${formatCents(mine, cur)}` : `You owe ${formatCents(-mine, cur)}`}
         </p>
         {mySuggestions.length > 0 && (
@@ -39,12 +39,12 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
               const iPay = s.fromUserId === user.id;
               const other = iPay ? s.toUserId : s.fromUserId;
               return (
-                <li key={`${s.fromUserId}-${s.toUserId}`} className="flex items-center gap-3 rounded-2xl bg-white p-2.5 text-ink">
+                <li key={`${s.fromUserId}-${s.toUserId}`} className="flex items-center gap-3 border-t border-slate-200 pt-3">
                   <Avatar id={other} name={nameOf(other)} size="sm" />
                   <span className="flex-1 text-sm">
                     {iPay ? <>Pay <b>{nameOf(other).split(" ")[0]}</b></> : <><b>{nameOf(other).split(" ")[0]}</b> pays you</>} <b className="tabular-nums">{formatCents(s.amountCents, cur)}</b>
                   </span>
-                  <Link className={iPay ? "btn-peach min-h-9 rounded-full px-3.5 text-xs" : "btn-secondary min-h-9 rounded-full px-3.5 text-xs"} href={`/expenses?from=${s.fromUserId}&to=${s.toUserId}&amount=${(s.amountCents / 100).toFixed(2)}#settle`}>
+                  <Link className={iPay ? "btn-peach min-h-9 px-3.5 text-sm" : "btn-secondary min-h-9 px-3.5 text-sm"} href={`/expenses?from=${s.fromUserId}&to=${s.toUserId}&amount=${(s.amountCents / 100).toFixed(2)}#settle`}>
                     {iPay ? "I paid this" : "They paid me"}
                   </Link>
                 </li>

@@ -4,62 +4,62 @@
   --font-sans: var(--font-body), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   --font-display: var(--font-body), ui-sans-serif, system-ui, sans-serif;
 
-  /* Primary: deep navy */
-  --color-brand-50: #f0f3f9;
-  --color-brand-100: #e1e6f1;
-  --color-brand-200: #c3cce0;
-  --color-brand-300: #96a3c2;
-  --color-brand-500: #2c3c63;
-  --color-brand-600: #14213d;
-  --color-brand-700: #14213d;
-  --color-brand-800: #0c1528;
+  /* "brand" is near-black: headings, primary buttons, selected states */
+  --color-brand-50: #f7f7f7;
+  --color-brand-100: #f0f0f0;
+  --color-brand-200: #dddddd;
+  --color-brand-300: #b0b0b0;
+  --color-brand-500: #484848;
+  --color-brand-600: #222222;
+  --color-brand-700: #222222;
+  --color-brand-800: #111111;
 
-  /* Accent: coral, for the things you tap to act */
-  --color-peach-50: #fff4f0;
-  --color-peach-100: #ffe6dd;
-  --color-peach-200: #ffcfbf;
-  --color-peach-300: #ffa98f;
-  --color-peach-400: #ff6b4a;
-  --color-peach-500: #f2553a;
-  --color-peach-700: #c23a22;
+  /* "peach" is the single rose accent, used only for actions you take */
+  --color-peach-50: #fff1f3;
+  --color-peach-100: #ffe1e6;
+  --color-peach-200: #ffc7d0;
+  --color-peach-300: #ff9aab;
+  --color-peach-400: #e8475f;
+  --color-peach-500: #d63a52;
+  --color-peach-700: #b42a40;
 
-  /* Warm neutrals to sit on the off-white background */
-  --color-slate-50: #fdf9f7;
-  --color-slate-100: #f7efea;
-  --color-slate-200: #f1e6df;
-  --color-slate-300: #e2d5cd;
-  --color-slate-400: #a8a2a6;
-  --color-slate-500: #7a7f91;
-  --color-slate-600: #5c6680;
-  --color-slate-700: #3c4660;
+  /* Neutral greys */
+  --color-slate-50: #fafafa;
+  --color-slate-100: #f7f7f7;
+  --color-slate-200: #ebebeb;
+  --color-slate-300: #dddddd;
+  --color-slate-400: #b0b0b0;
+  --color-slate-500: #8a8a8a;
+  --color-slate-600: #717171;
+  --color-slate-700: #484848;
 
-  --color-ink: #14213d;
-  --color-muted: #5c6680;
-  --color-canvas: #fff6f0;
+  --color-ink: #222222;
+  --color-muted: #717171;
+  --color-canvas: #ffffff;
   --color-paper: #ffffff;
-  --color-note: #ffe6dd;
-  --color-lilac: #e1e6f1;
-  --color-mint: #dcf3e8;
+  --color-note: #fff4e5;
+  --color-lilac: #eef2ff;
+  --color-mint: #e9f7ef;
 }
 
 html { -webkit-tap-highlight-color: transparent; }
-body { background: var(--color-canvas); color: var(--color-ink); overflow-x: hidden; }
-h1, h2, h3 { font-family: var(--font-display); letter-spacing: -0.02em; }
+body { background: #fff; color: var(--color-ink); overflow-x: hidden; }
+h1, h2, h3 { font-family: var(--font-display); letter-spacing: -0.015em; }
 
 /* Visible focus for keyboard users everywhere */
-:focus-visible { outline: 3px solid var(--color-peach-400); outline-offset: 2px; border-radius: 6px; }
+:focus-visible { outline: 2px solid var(--color-ink); outline-offset: 2px; border-radius: 6px; }
 
 @utility input {
-  @apply w-full rounded-2xl border-2 border-slate-200 bg-white px-3.5 py-2.5 text-base text-ink placeholder:text-slate-400
-    focus:border-ink focus:outline-none disabled:bg-slate-100;
+  @apply w-full rounded-xl border border-slate-400 bg-white px-3.5 py-3 text-base text-ink placeholder:text-slate-500
+    focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink disabled:bg-slate-100;
 }
-@utility label { @apply mb-1 block text-sm font-medium text-ink; }
-@utility card { @apply rounded-[20px] bg-white shadow-[0_1px_2px_rgb(20_33_61/0.05),0_6px_20px_-8px_rgb(20_33_61/0.10)]; }
-@utility btn { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl px-4 py-2 text-sm font-bold transition active:scale-[.97] disabled:cursor-not-allowed disabled:opacity-60; }
-@utility btn-primary { @apply btn bg-ink text-white hover:bg-brand-500; }
+@utility label { @apply mb-1 block text-sm font-semibold text-ink; }
+@utility card { @apply rounded-2xl border border-slate-300 bg-white; }
+@utility btn { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition active:scale-[.97] disabled:cursor-not-allowed disabled:opacity-50; }
+@utility btn-primary { @apply btn bg-ink text-white hover:bg-black; }
 @utility btn-peach { @apply btn bg-peach-400 text-white hover:bg-peach-500; }
-@utility btn-secondary { @apply btn border-2 border-slate-200 bg-white text-ink hover:border-slate-300; }
-@utility btn-ghost { @apply btn text-peach-700 hover:bg-peach-50; }
-@utility btn-danger { @apply btn border-2 border-red-200 bg-white text-red-700 hover:bg-red-50; }
+@utility btn-secondary { @apply btn border border-ink bg-white text-ink hover:bg-slate-100; }
+@utility btn-ghost { @apply btn text-ink underline underline-offset-4 hover:bg-slate-100; }
+@utility btn-danger { @apply btn border border-red-300 bg-white text-red-700 hover:bg-red-50; }
 @utility chip { @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold; }
 
