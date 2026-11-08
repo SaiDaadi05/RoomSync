@@ -4,10 +4,10 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireHousehold, requireUser } from "@/server/session";
 import { toActionError, type ActionState } from "@/server/action";
-import { attachReceipt, createExpense, deleteExpense, deleteSettlement, recordSettlement } from "@/server/expenses";
+import { attachReceipt, createExpense, deleteExpense, deleteSettlement, recordSettlement, updateExpense } from "@/server/expenses";
 import {
   addShoppingItem, claimShoppingItem, createShoppingErrand, deleteShoppingItem, markPurchased,
-  purchaseWithExpense, restockItem, unclaimShoppingItem,
+  purchaseWithExpense, restockItem, unclaimShoppingItem, updateShoppingItem,
 } from "@/server/shopping";
 import { parseMoneyToCents } from "@/lib/money";
 import { invalid } from "@/server/errors";
@@ -29,22 +29,9 @@ export async function createExpenseAction(_: ActionState, fd: FormData): Promise
   let id: string;
   try {
     const { user, household } = await requireHousehold();
-    const splitMethod = fd.get("splitMethod") === "CUSTOM" ? "CUSTOM" : "EQUAL";
-    const participantIds = fd.getAll("participants").map(String);
-    const participants = participantIds.map((userId) => {
-      if (splitMethod === "EQUAL") return { userId };
-      const raw = String(fd.get(`amt_${userId}`) ?? "").trim();
-      return { userId, amountCents: raw ? parseMoneyToCents(raw) : 0 };
-    });
     const receipt = await receiptFrom(fd);
     const expense = await createExpense(user.id, household.id, {
-      payerId: fd.get("payerId"),
-      amountCents: parseMoneyToCents(String(fd.get("amount") ?? "")),
-      date: fd.get("date"),
-      description: fd.get("description"),
-      category: fd.get("category") || "other",
-      splitMethod,
-      participants,
+      ...expenseFromForm(fd),
       shoppingItemIds: fd.getAll("shoppingItemIds").map(String),
     });
     id = expense.id;
@@ -61,6 +48,49 @@ export async function createExpenseAction(_: ActionState, fd: FormData): Promise
   }
   refresh();
   redirect(`/expenses/${id}`);
+}
+
+function expenseFromForm(fd: FormData) {
+  const splitMethod = fd.get("splitMethod") === "CUSTOM" ? "CUSTOM" : "EQUAL";
+  const participants = fd.getAll("participants").map(String).map((userId) => {
+    if (splitMethod === "EQUAL") return { userId };
+    const raw = String(fd.get(`amt_${userId}`) ?? "").trim();
+    return { userId, amountCents: raw ? parseMoneyToCents(raw) : 0 };
+  });
+  return {
+    payerId: fd.get("payerId"),
+    amountCents: parseMoneyToCents(String(fd.get("amount") ?? "")),
+    date: fd.get("date"),
+    description: fd.get("description"),
+    category: fd.get("category") || "other",
+    splitMethod,
+    participants,
+  };
+}
+
+export async function updateExpenseAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const id = String(fd.get("id"));
+  try {
+    const user = await requireUser();
+    await updateExpense(user.id, id, expenseFromForm(fd));
+  } catch (e) {
+    return toActionError(e);
+  }
+  refresh();
+  redirect(`/expenses/${id}?edited=1`);
+}
+
+export async function updateItemAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const user = await requireUser();
+    await updateShoppingItem(user.id, String(fd.get("id")), {
+      name: fd.get("name"), quantity: fd.get("quantity") ?? undefined, notes: fd.get("notes"), productUrl: fd.get("productUrl"),
+    });
+    refresh();
+    return { ok: true, message: "Saved" };
+  } catch (e) {
+    return toActionError(e);
+  }
 }
 
 export async function uploadReceiptAction(_: ActionState, fd: FormData): Promise<ActionState> {

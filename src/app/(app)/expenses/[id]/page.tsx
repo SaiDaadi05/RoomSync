@@ -9,22 +9,26 @@ import { ReceiptUpload } from "@/components/receipt-upload";
 import { deleteExpenseAction } from "@/app/actions/money";
 import { AppError } from "@/server/errors";
 
-export default async function ExpenseDetail({ params }: { params: Promise<{ id: string }> }) {
+export default async function ExpenseDetail({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ edited?: string }> }) {
   const { id } = await params;
+  const { edited } = await searchParams;
   const { user, household } = await requireHousehold();
   let e;
   try { e = await getExpense(user.id, id); } catch (err) { if (err instanceof AppError) notFound(); throw err; }
-  const people = await prisma.user.findMany({ where: { id: { in: [e.payerId, ...e.splits.map((s) => s.userId)] } }, select: { id: true, name: true } });
+  const people = await prisma.user.findMany({ where: { id: { in: [e.payerId, ...e.splits.map((s) => s.userId), ...(e.editedById ? [e.editedById] : [])] } }, select: { id: true, name: true } });
   const nameOf = (uid: string) => people.find((p) => p.id === uid)?.name ?? "Someone";
   const cur = household.currency;
   return (
     <>
       <Link href="/expenses" className="mb-3 inline-block text-sm font-medium text-brand-700">← Expenses</Link>
+      {edited && <p role="status" className="mb-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">Saved. Balances are updated.</p>}
       <div className="card mb-5 p-5">
+        <div className="float-right"><Link href={`/expenses/${e.id}/edit`} className="btn-secondary">Edit</Link></div>
         <p className="text-sm text-muted">{e.date} · <span className="capitalize">{e.category}</span></p>
         <h1 className="text-xl font-bold">{e.description}</h1>
         <p className="mt-2 text-3xl font-bold tabular-nums">{formatCents(e.amountCents, cur)}</p>
         <p className="mt-1 text-sm text-muted">Paid by <b className="text-ink">{nameOf(e.payerId)}</b> · split {e.splitMethod === "EQUAL" ? "equally" : "by custom amounts"}</p>
+        {e.editedAt && <p className="mt-1 text-xs text-muted">Edited by {nameOf(e.editedById ?? "")} on {e.editedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</p>}
       </div>
       <Section title="Who owes what">
         <ul className="card divide-y divide-slate-100">

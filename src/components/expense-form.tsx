@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { ActionForm, SubmitButton } from "./forms";
 import { createExpenseAction } from "@/app/actions/money";
+import type { ActionState } from "@/server/action";
 
 const CATEGORIES = ["groceries", "household supplies", "rent", "utilities", "internet", "food & dining", "furniture", "other"];
 
@@ -14,11 +15,19 @@ function toCents(s: string): number | null {
 }
 const fmt = (c: number) => (c < 0 ? "-" : "") + "$" + (Math.abs(c) / 100).toFixed(2);
 
-export function ExpenseForm({ members, currentUserId, today }: { members: { id: string; name: string }[]; currentUserId: string; today: string }) {
-  const [amount, setAmount] = useState("");
-  const [method, setMethod] = useState<"EQUAL" | "CUSTOM">("EQUAL");
-  const [included, setIncluded] = useState<string[]>(members.map((m) => m.id));
-  const [custom, setCustom] = useState<Record<string, string>>({});
+export type ExpenseInitial = {
+  id: string; description: string; amount: string; date: string; payerId: string; category: string;
+  splitMethod: "EQUAL" | "CUSTOM"; participants: string[]; custom: Record<string, string>;
+};
+
+export function ExpenseForm({ members, currentUserId, today, initial, action = createExpenseAction, submitLabel = "Save expense" }: {
+  members: { id: string; name: string }[]; currentUserId: string; today: string;
+  initial?: ExpenseInitial; action?: (s: ActionState, fd: FormData) => Promise<ActionState>; submitLabel?: string;
+}) {
+  const [amount, setAmount] = useState(initial?.amount ?? "");
+  const [method, setMethod] = useState<"EQUAL" | "CUSTOM">(initial?.splitMethod ?? "EQUAL");
+  const [included, setIncluded] = useState<string[]>(initial?.participants ?? members.map((m) => m.id));
+  const [custom, setCustom] = useState<Record<string, string>>(initial?.custom ?? {});
   const total = toCents(amount);
 
   const preview = useMemo(() => {
@@ -33,10 +42,11 @@ export function ExpenseForm({ members, currentUserId, today }: { members: { id: 
   }, [total, included, method, custom]);
 
   return (
-    <ActionForm action={createExpenseAction} className="space-y-5">
+    <ActionForm action={action} className="space-y-5">
+      {initial && <input type="hidden" name="id" value={initial.id} />}
       <div>
         <label className="label" htmlFor="description">What was it for?</label>
-        <input id="description" name="description" required maxLength={140} placeholder="Costco run" className="input" />
+        <input id="description" name="description" required maxLength={140} placeholder="Costco run" defaultValue={initial?.description} className="input" />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
@@ -49,17 +59,17 @@ export function ExpenseForm({ members, currentUserId, today }: { members: { id: 
         </div>
         <div>
           <label className="label" htmlFor="date">Date</label>
-          <input id="date" name="date" type="date" defaultValue={today} required className="input" />
+          <input id="date" name="date" type="date" defaultValue={initial?.date ?? today} required className="input" />
         </div>
         <div>
           <label className="label" htmlFor="payerId">Paid by</label>
-          <select id="payerId" name="payerId" defaultValue={currentUserId} className="input">
+          <select id="payerId" name="payerId" defaultValue={initial?.payerId ?? currentUserId} className="input">
             {members.map((m) => <option key={m.id} value={m.id}>{m.id === currentUserId ? `${m.name} (me)` : m.name}</option>)}
           </select>
         </div>
         <div>
           <label className="label" htmlFor="category">Category</label>
-          <select id="category" name="category" defaultValue="groceries" className="input capitalize">
+          <select id="category" name="category" defaultValue={initial?.category ?? "groceries"} className="input capitalize">
             {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
@@ -102,12 +112,12 @@ export function ExpenseForm({ members, currentUserId, today }: { members: { id: 
         )}
       </fieldset>
 
-      <div>
+      {!initial && <div>
         <label className="label" htmlFor="receipt">Receipt (optional)</label>
         <input id="receipt" name="receipt" type="file" accept="image/jpeg,image/png,image/webp,image/heic,application/pdf" className="block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-brand-50 file:px-3 file:py-2 file:font-semibold file:text-brand-700" />
         <p className="mt-1 text-xs text-muted">JPG, PNG, WEBP, HEIC or PDF up to 5 MB. Only your household can see it.</p>
-      </div>
-      <SubmitButton className="btn-primary w-full">Save expense</SubmitButton>
+      </div>}
+      <SubmitButton className="btn-primary w-full">{submitLabel}</SubmitButton>
     </ActionForm>
   );
 }

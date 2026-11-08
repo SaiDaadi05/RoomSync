@@ -47,6 +47,12 @@ async function loadItem(userId: string, itemId: string) {
 export async function updateShoppingItem(userId: string, itemId: string, input: unknown) {
   const item = await loadItem(userId, itemId);
   const data = itemSchema.parse(input);
+  if (item.status !== "PURCHASED") {
+    const dupe = await prisma.shoppingItem.findFirst({
+      where: { householdId: item.householdId, id: { not: item.id }, status: { not: "PURCHASED" }, name: { equals: data.name, mode: "insensitive" } },
+    });
+    if (dupe) throw new AppError(`“${dupe.name}” is already on the list`, "CONFLICT");
+  }
   return prisma.shoppingItem.update({ where: { id: item.id }, data });
 }
 

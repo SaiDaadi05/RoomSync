@@ -4,6 +4,7 @@ import { listShopping } from "@/server/shopping";
 import { activeMembers } from "@/server/access";
 import { ActionForm, SubmitButton } from "@/components/forms";
 import { ShoppingBulk } from "@/components/shopping-bulk";
+import { ItemEdit } from "@/components/item-edit";
 import { Avatar, Badge, EmptyState, PageHeader, Section } from "@/components/ui";
 import { addItemAction, claimItemAction, deleteItemAction, restockItemAction, unclaimItemAction } from "@/app/actions/money";
 import { formatCents } from "@/lib/money";
@@ -64,6 +65,7 @@ export default async function ShoppingPage() {
                       <Link href={`/tasks/${i.errandOccurrence.definition.id}`}><Badge tone="violet">🏃 {i.errandOccurrence.definition.title}</Badge></Link>
                     )}
                   </div>
+                  <ItemEdit item={i} />
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1">
                   {i.status === "CLAIMED" ? (

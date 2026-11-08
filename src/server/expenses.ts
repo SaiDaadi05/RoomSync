@@ -86,6 +86,29 @@ export async function createExpense(userId: string, householdId: string, input: 
   });
 }
 
+/**
+ * Edit an expense: amount, payer, date, description, category and splits. Splits are
+ * replaced atomically and validated exactly like a new expense. Linked shopping items stay linked.
+ */
+export async function updateExpense(userId: string, expenseId: string, input: unknown) {
+  const existing = await loadExpense(userId, expenseId);
+  const data = expenseInputSchema.parse({ ...(input as object), shoppingItemIds: [] });
+  await assertAllMembers(existing.householdId, [data.payerId, ...data.participants.map((p) => p.userId)]);
+  const splits = computeSplits(data);
+  return prisma.$transaction(async (tx) => {
+    await tx.expenseSplit.deleteMany({ where: { expenseId } });
+    return tx.expense.update({
+      where: { id: expenseId },
+      data: {
+        payerId: data.payerId, amountCents: data.amountCents, date: data.date, description: data.description,
+        category: data.category, splitMethod: data.splitMethod, editedAt: new Date(), editedById: userId,
+        splits: { create: splits },
+      },
+      include: { splits: true },
+    });
+  });
+}
+
 async function loadExpense(userId: string, expenseId: string) {
   const e = await prisma.expense.findUnique({ where: { id: expenseId }, include: { splits: true, shoppingItems: true } });
   if (!e || e.deletedAt) throw notFound("Expense");

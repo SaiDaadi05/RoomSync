@@ -73,6 +73,7 @@ Two agents work on this repo (Claude and Codex), driven by different people. The
 | Area | Owner | Branch / PR | Notes |
 |---|---|---|---|
 | App foundation (all 5 stages, first pass) | Claude | `claude/app-foundation` / #2 | Awaiting review |
+| Edit expenses and shopping items (#12) | Claude | `claude/edit-expenses` (stacked on #2) | Awaiting review |
 
 ### Done
 

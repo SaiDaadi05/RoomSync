@@ -311,6 +311,8 @@ model Expense {
   receiptMime  String?
   createdById  String
   deletedAt    DateTime?
+  editedAt     DateTime?
+  editedById   String?
   createdAt    DateTime    @default(now())
 
   splits        ExpenseSplit[]
