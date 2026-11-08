@@ -48,6 +48,7 @@ See `.env.example`. Required: `DATABASE_URL`, `APP_URL`, `ENCRYPTION_KEY`. Optio
 | Apple Calendar | **Not implemented.** Apple has no public OAuth/REST calendar API for web apps. Options: (a) CalDAV against iCloud with an app-specific password the user generates, or (b) a native iOS companion using EventKit. Needs a product decision before building. Manual availability works meanwhile. |
 | Email reminders | Implemented through SMTP (nodemailer). Inactive until `SMTP_HOST` is set. |
 | Amazon / retailers | Saved product links open the retailer's site for checkout. No ordering, catalog, or Fresh integration, and nothing pretends a purchase happened. |
+| Task swaps | Request → accept/decline. Nothing changes hands until the other roommate accepts; a request expires if either task changes first. |
 | Payments | None. "Record a payment" is bookkeeping only. |
 
 ### Google Calendar setup

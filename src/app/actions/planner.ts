@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireHousehold, requireUser } from "@/server/session";
 import { toActionError, type ActionState } from "@/server/action";
-import { acceptSchedule, addAvailability, deleteAvailability, swapOccurrences, syncOccurrenceToGoogle, unscheduleOccurrence } from "@/server/planner";
+import { acceptSchedule, addAvailability, cancelSwap, deleteAvailability, requestSwap, respondToSwap, syncOccurrenceToGoogle, unscheduleOccurrence } from "@/server/planner";
 import { revokeGoogle } from "@/server/calendar/google";
 import { hhmmToMinutes, localToUtc } from "@/lib/time";
 import { prisma } from "@/server/db";
@@ -66,12 +66,32 @@ export async function syncToGoogleAction(_: ActionState, fd: FormData): Promise<
 export async function swapAction(_: ActionState, fd: FormData): Promise<ActionState> {
   try {
     const user = await requireUser();
-    await swapOccurrences(user.id, String(fd.get("mine")), String(fd.get("theirs")));
+    await requestSwap(user.id, String(fd.get("mine")), String(fd.get("theirs")), String(fd.get("message") ?? ""));
     refresh();
-    return { ok: true, message: "Swapped. Your roommate has been notified." };
+    return { ok: true, message: "Swap request sent. Nothing changes unless they accept." };
   } catch (e) {
     return toActionError(e);
   }
+}
+
+export async function respondSwapAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  let outcome: "ACCEPTED" | "DECLINED";
+  try {
+    const user = await requireUser();
+    outcome = await respondToSwap(user.id, String(fd.get("id")), fd.get("answer") === "accept");
+  } catch (e) {
+    refresh();
+    return toActionError(e);
+  }
+  refresh();
+  // The request card disappears once answered, so confirm on the page itself.
+  redirect(`/planner?swap=${outcome === "ACCEPTED" ? "accepted" : "declined"}#swaps`);
+}
+
+export async function cancelSwapAction(fd: FormData) {
+  const user = await requireUser();
+  await cancelSwap(user.id, String(fd.get("id")));
+  refresh();
 }
 
 export async function addAvailabilityAction(_: ActionState, fd: FormData): Promise<ActionState> {

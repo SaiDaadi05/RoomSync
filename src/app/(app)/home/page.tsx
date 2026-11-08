@@ -5,6 +5,7 @@ import { listOccurrences } from "@/server/tasks";
 import { activeMembers } from "@/server/access";
 import { computeBalances } from "@/server/expenses";
 import { listShopping } from "@/server/shopping";
+import { listSwapRequests } from "@/server/planner";
 import { formatCents } from "@/lib/money";
 import { TaskList } from "@/components/task-row";
 import { QuickAddTask } from "@/components/quick-add";
@@ -16,11 +17,12 @@ export default async function HomePage() {
   const { user, household } = await requireHousehold();
   const tz = household.timezone;
   const now = DateTime.now().setZone(tz);
-  const [pending, members, { balances }, { open }] = await Promise.all([
+  const [pending, members, { balances }, { open }, swaps] = await Promise.all([
     listOccurrences(user.id, household.id, { status: "PENDING", to: now.plus({ days: 7 }).endOf("day").toJSDate() }),
     activeMembers(household.id),
     computeBalances(user.id, household.id),
     listShopping(user.id, household.id),
+    listSwapRequests(user.id, household.id),
   ]);
   const nowJs = now.toJSDate();
   const endToday = now.endOf("day").toJSDate();
@@ -51,6 +53,14 @@ export default async function HomePage() {
           <p className="flex-1 text-sm">RoomSync works best with everyone in. Invite your roommates to share chores and costs.</p>
           <LinkButton href="/household#invite">Invite</LinkButton>
         </div>
+      )}
+
+      {swaps.incoming.length > 0 && (
+        <Link href="/planner#swaps" className="card mb-6 flex items-center gap-3 border-brand-200 bg-brand-50 p-4">
+          <span className="text-2xl" aria-hidden>🔁</span>
+          <p className="flex-1 text-sm font-medium">{swaps.incoming.length === 1 ? "A roommate wants to swap a task with you" : `${swaps.incoming.length} roommates want to swap tasks with you`}</p>
+          <span className="text-sm font-semibold text-brand-700">Review →</span>
+        </Link>
       )}
 
       {overdue.length > 0 && (

@@ -1,11 +1,11 @@
 "use client";
 
 import { ActionForm, SubmitButton } from "./forms";
-import { acceptProposalsAction, planManuallyAction, swapAction, syncToGoogleAction, addAvailabilityAction } from "@/app/actions/planner";
+import { acceptProposalsAction, planManuallyAction, swapAction, syncToGoogleAction, addAvailabilityAction, respondSwapAction } from "@/app/actions/planner";
 
 export type ProposalView = { occurrenceId: string; title: string; who: string; when: string; reason: string; ok: boolean; payload: string };
 
-export function ProposalsForm({ proposals, cta }: { proposals: ProposalView[]; cta: string }) {
+export function ProposalsForm({ proposals, cta, defaultChecked = true }: { proposals: ProposalView[]; cta: string; defaultChecked?: boolean }) {
   const okCount = proposals.filter((p) => p.ok).length;
   return (
     <ActionForm action={acceptProposalsAction} className="space-y-2">
@@ -13,7 +13,7 @@ export function ProposalsForm({ proposals, cta }: { proposals: ProposalView[]; c
         {proposals.map((p) => (
           <li key={p.occurrenceId} className={`card p-3 ${p.ok ? "" : "border-amber-200 bg-amber-50"}`}>
             <label className="flex items-start gap-3">
-              {p.ok ? <input type="checkbox" name="proposal" value={p.payload} defaultChecked className="mt-1 h-5 w-5 accent-brand-600" /> : <span aria-hidden className="mt-0.5">⚠️</span>}
+              {p.ok ? <input type="checkbox" name="proposal" value={p.payload} defaultChecked={defaultChecked} className="mt-1 h-5 w-5 accent-brand-600" /> : <span aria-hidden className="mt-0.5">⚠️</span>}
               <span className="flex-1">
                 <span className="block font-medium">{p.title}</span>
                 {p.ok && <span className="block text-sm"><b>{p.who}</b> · {p.when}</span>}
@@ -63,8 +63,9 @@ export function SwapForm({ mine, theirs }: { mine: { id: string; label: string }
           {theirs.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
         </select>
       </div>
-      <SubmitButton className="btn-secondary w-full">Swap these</SubmitButton>
-      <p className="text-xs text-muted">Talk to your roommate first. They get a notification and can swap back.</p>
+      <input name="message" maxLength={200} placeholder="Add a note (optional), e.g. I have an exam Thursday" className="input text-sm" aria-label="Note" />
+      <SubmitButton className="btn-secondary w-full">Ask to swap</SubmitButton>
+      <p className="text-xs text-muted">Your roommate gets a request. Nothing changes unless they accept.</p>
     </ActionForm>
   );
 }
@@ -87,6 +88,16 @@ export function AvailabilityForm() {
         <input type="time" name="end" defaultValue="21:00" required className="input" aria-label="To" />
       </div>
       <SubmitButton className="btn-primary w-full">Add free time</SubmitButton>
+    </ActionForm>
+  );
+}
+
+export function SwapAnswer({ id }: { id: string }) {
+  return (
+    <ActionForm action={respondSwapAction} className="flex gap-2">
+      <input type="hidden" name="id" value={id} />
+      <button type="submit" name="answer" value="accept" className="btn-primary min-h-9 flex-1 text-xs">Accept swap</button>
+      <button type="submit" name="answer" value="decline" className="btn-secondary min-h-9 flex-1 text-xs">Decline</button>
     </ActionForm>
   );
 }

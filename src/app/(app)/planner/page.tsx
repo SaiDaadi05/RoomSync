@@ -1,30 +1,31 @@
 import Link from "next/link";
 import { DateTime } from "luxon";
 import { requireHousehold } from "@/server/session";
-import { buildMissedProposals, buildProposals, weekBounds, workloadSummary } from "@/server/planner";
+import { buildMissedProposals, buildProposals, listSwapRequests, weekBounds, workloadSummary } from "@/server/planner";
 import { listOccurrences } from "@/server/tasks";
 import { activeMembers } from "@/server/access";
 import { prisma } from "@/server/db";
 import { Avatar, Badge, EmptyState, PageHeader, Section } from "@/components/ui";
-import { PlanManually, ProposalsForm, SwapForm, SyncGoogle, type ProposalView } from "@/components/planner-forms";
-import { unscheduleAction } from "@/app/actions/planner";
+import { PlanManually, ProposalsForm, SwapAnswer, SwapForm, SyncGoogle, type ProposalView } from "@/components/planner-forms";
+import { cancelSwapAction, unscheduleAction } from "@/app/actions/planner";
 import { CATEGORY_EMOJI } from "@/components/task-row";
 import type { Proposal } from "@/lib/scheduling";
 
 export const metadata = { title: "Planner" };
 
-export default async function PlannerPage({ searchParams }: { searchParams: Promise<{ week?: string; suggest?: string }> }) {
+export default async function PlannerPage({ searchParams }: { searchParams: Promise<{ week?: string; suggest?: string; swap?: string }> }) {
   const { user, household } = await requireHousehold();
   const sp = await searchParams;
   const offset = Math.max(-4, Math.min(8, Number(sp.week) || 0));
   const tz = household.timezone;
   const { start, end, label } = weekBounds(tz, offset);
-  const [members, occs, workload, myGoogle, missed] = await Promise.all([
+  const [members, occs, workload, myGoogle, missed, swaps] = await Promise.all([
     activeMembers(household.id),
     listOccurrences(user.id, household.id, { from: start, to: end }),
     workloadSummary(user.id, household.id, start, end),
     prisma.calendarConnection.findUnique({ where: { userId_provider: { userId: user.id, provider: "GOOGLE" } } }),
     offset === 0 ? buildMissedProposals(user.id, household.id) : Promise.resolve({ proposals: [] as Proposal[], notes: [] }),
+    listSwapRequests(user.id, household.id),
   ]);
   const suggest = sp.suggest === "1" ? await buildProposals(user.id, household.id, { from: start, to: end }) : null;
   const synced = myGoogle ? new Set((await prisma.calendarEventLink.findMany({ where: { connectionId: myGoogle.id, occurrenceId: { in: occs.map((o) => o.id) } } })).map((l) => l.occurrenceId)) : new Set<string>();
@@ -52,6 +53,32 @@ export default async function PlannerPage({ searchParams }: { searchParams: Prom
         <Link href={`/planner?week=${offset + 1}`} className="btn-ghost min-h-9" aria-label="Next week">Next →</Link>
       </div>
 
+      {sp.swap && (
+        <p role="status" className="mb-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          {sp.swap === "accepted" ? "Swapped. Your roommate has been notified, and the tasks are now in each other's lists." : "Declined. Your roommate has been notified, and nothing changed."}
+        </p>
+      )}
+
+      {(swaps.incoming.length > 0 || swaps.outgoing.length > 0) && (
+        <Section title="Swap requests">
+          <ul id="swaps" className="space-y-2">
+            {swaps.incoming.map((r) => (
+              <li key={r.id} className="card border-brand-200 bg-brand-50 p-4">
+                <p className="text-sm"><b>{first(r.fromUserId)}</b> offers <b>{r.fromOccurrence.definition.title}</b> ({fmt(r.fromOccurrence.dueAt)}) in exchange for your <b>{r.toOccurrence.definition.title}</b> ({fmt(r.toOccurrence.dueAt)}).</p>
+                {r.message && <p className="mt-1 text-sm italic text-muted">“{r.message}”</p>}
+                <div className="mt-3"><SwapAnswer id={r.id} /></div>
+              </li>
+            ))}
+            {swaps.outgoing.map((r) => (
+              <li key={r.id} className="card flex items-center gap-3 p-3 text-sm">
+                <span className="flex-1">Waiting on <b>{first(r.toUserId)}</b>: your {r.fromOccurrence.definition.title} for their {r.toOccurrence.definition.title}</span>
+                <form action={cancelSwapAction}><input type="hidden" name="id" value={r.id} /><button className="text-xs font-semibold text-slate-600">Cancel</button></form>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      )}
+
       <Section title="Workload this week">
         <div className="card space-y-3 p-4">
           {workload.map((w) => (
@@ -72,7 +99,7 @@ export default async function PlannerPage({ searchParams }: { searchParams: Prom
         <Section title={`Missed tasks · ${missed.proposals.length}`}>
           <div id="missed">
             <p className="mb-2 text-sm text-muted">These are overdue. Here are new times in the next 3 days. Accepting moves only the tasks you tick.</p>
-            <ProposalsForm proposals={missed.proposals.map((p) => toView(p, true))} cta="Move ticked tasks to these times" />
+            <ProposalsForm proposals={missed.proposals.map((p) => toView(p, true))} cta="Move ticked tasks to these times" defaultChecked={false} />
           </div>
         </Section>
       )}

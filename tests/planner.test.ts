@@ -3,7 +3,7 @@ import { DateTime } from "luxon";
 import { makeHousehold } from "./helpers";
 import { freeIntervals, proposeSchedule, subtract, type PersonInput } from "@/lib/scheduling";
 import { createTask, listOccurrences, completeOccurrence, assignOccurrence } from "@/server/tasks";
-import { acceptSchedule, addAvailability, buildProposals, swapOccurrences, buildMissedProposals } from "@/server/planner";
+import { acceptSchedule, addAvailability, buildProposals, buildMissedProposals } from "@/server/planner";
 import { generateReminders, deliverEmails } from "@/server/reminders";
 import { prisma } from "@/server/db";
 import { encryptSecret, decryptSecret } from "@/server/crypto";
@@ -106,22 +106,11 @@ describe("planner service", () => {
     expect(moved.originalDueAt.toISOString()).toBe(before.originalDueAt.toISOString());
   });
 
-  it("availability windows reject overlaps; swaps require being one of the assignees", async () => {
-    const { household, owner, members } = await makeHousehold(2);
+  it("availability windows reject overlaps", async () => {
+    const { owner } = await makeHousehold(0);
     await addAvailability(owner.id, { weekday: 1, startMin: 1080, endMin: 1260 });
     await expect(addAvailability(owner.id, { weekday: 1, startMin: 1200, endMin: 1300 })).rejects.toThrow(/overlaps/);
-    const d = DateTime.now().setZone(TZ).plus({ days: 3 }).toISODate()!;
-    await createTask(owner.id, household.id, { title: "A", startsOn: d, assignmentMode: "FIXED", assigneeId: owner.id });
-    await createTask(owner.id, household.id, { title: "B", startsOn: d, assignmentMode: "FIXED", assigneeId: members[1].id });
-    await createTask(owner.id, household.id, { title: "C", startsOn: d, assignmentMode: "FIXED", assigneeId: members[2].id });
-    const occs = await listOccurrences(owner.id, household.id);
-    const byTitle = (t: string) => occs.find((o) => o.definition.title === t)!;
-    await expect(swapOccurrences(owner.id, byTitle("B").id, byTitle("C").id)).rejects.toThrow(/assigned to you/);
-    await swapOccurrences(owner.id, byTitle("A").id, byTitle("B").id);
-    const [a, b] = await Promise.all([prisma.taskOccurrence.findUniqueOrThrow({ where: { id: byTitle("A").id } }), prisma.taskOccurrence.findUniqueOrThrow({ where: { id: byTitle("B").id } })]);
-    expect(a.assigneeId).toBe(members[1].id);
-    expect(b.assigneeId).toBe(owner.id);
-    expect(await prisma.notification.count({ where: { userId: members[1].id, type: "task_swapped" } })).toBe(1);
+    await addAvailability(owner.id, { weekday: 1, startMin: 1260, endMin: 1300 });
   });
 });
 

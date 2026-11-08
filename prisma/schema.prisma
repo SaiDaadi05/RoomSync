@@ -71,6 +71,7 @@ model Household {
   expenses      Expense[]
   settlements   Settlement[]
   notifications Notification[]
+  swapRequests  SwapRequest[]
 }
 
 model Membership {
@@ -181,6 +182,8 @@ model TaskOccurrence {
   events         TaskEvent[]
   calendarEvents CalendarEventLink[]
   shoppingItems  ShoppingItem[]
+  swapsOffered   SwapRequest[] @relation("SwapFrom")
+  swapsWanted    SwapRequest[] @relation("SwapTo")
 
   @@unique([definitionId, originalDueAt])
   @@index([householdId, dueAt])
@@ -197,6 +200,35 @@ model TaskEvent {
   createdAt    DateTime       @default(now())
 
   @@index([occurrenceId])
+}
+
+enum SwapStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+  EXPIRED // a task changed (done, skipped, reassigned) before anyone answered
+}
+
+// "Will you take my task in exchange for yours?" Nothing changes hands until the
+// other roommate accepts.
+model SwapRequest {
+  id               String         @id @default(cuid())
+  householdId      String
+  household        Household      @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  fromUserId       String
+  toUserId         String
+  fromOccurrenceId String
+  fromOccurrence   TaskOccurrence @relation("SwapFrom", fields: [fromOccurrenceId], references: [id], onDelete: Cascade)
+  toOccurrenceId   String
+  toOccurrence     TaskOccurrence @relation("SwapTo", fields: [toOccurrenceId], references: [id], onDelete: Cascade)
+  message          String?
+  status           SwapStatus     @default(PENDING)
+  createdAt        DateTime       @default(now())
+  respondedAt      DateTime?
+
+  @@index([householdId, status])
+  @@index([toUserId, status])
 }
 
 // ---------- Availability & calendars ----------
