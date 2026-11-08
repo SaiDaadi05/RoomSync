@@ -71,6 +71,7 @@ model Household {
   expenses      Expense[]
   settlements   Settlement[]
   notifications Notification[]
+  handoffs      HandoffRequest[]
 }
 
 model Membership {
@@ -181,6 +182,7 @@ model TaskOccurrence {
   events         TaskEvent[]
   calendarEvents CalendarEventLink[]
   shoppingItems  ShoppingItem[]
+  handoffs       HandoffRequest[]
 
   @@unique([definitionId, originalDueAt])
   @@index([householdId, dueAt])
@@ -197,6 +199,35 @@ model TaskEvent {
   createdAt    DateTime       @default(now())
 
   @@index([occurrenceId])
+}
+
+enum HandoffStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+}
+
+// "Can you take this task?" / "Can I take that one off you?" A one-way reassignment
+// of a single occurrence. The person who didn't ask must accept before anything moves.
+// Rebalancing suggestions are sent as handoffs, so nothing is reassigned without consent.
+model HandoffRequest {
+  id            String         @id @default(cuid())
+  householdId   String
+  household     Household      @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  occurrenceId  String
+  occurrence    TaskOccurrence @relation(fields: [occurrenceId], references: [id], onDelete: Cascade)
+  fromUserId    String // current assignee who would give it up
+  toUserId      String // roommate who would take it on
+  requestedById String // either fromUserId or toUserId
+  source        String         @default("manual") // manual | rebalance
+  message       String?
+  status        HandoffStatus  @default(PENDING)
+  createdAt     DateTime       @default(now())
+  respondedAt   DateTime?
+
+  @@index([householdId, status])
+  @@index([occurrenceId, status])
 }
 
 // ---------- Availability & calendars ----------
