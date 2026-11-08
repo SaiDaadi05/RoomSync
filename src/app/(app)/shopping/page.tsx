@@ -47,7 +47,7 @@ export default async function ShoppingPage() {
         {open.length === 0 ? (
           <EmptyState icon="🛒" title="The list is empty" body="Add things the household is running low on. Everyone sees the same list, so nothing gets bought twice." />
         ) : (
-          <ul className="card divide-y-2 divide-dashed divide-ink/15 overflow-hidden">
+          <ul className="card divide-y divide-slate-200 overflow-hidden">
             {open.map((i) => (
               <li key={i.id} className="flex items-start gap-3 p-3">
                 <input type="checkbox" name="itemIds" value={i.id} form="bulk" aria-label={`Select ${i.name}`} className="mt-1 h-5 w-5 accent-brand-600" />

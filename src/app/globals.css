@@ -2,73 +2,64 @@
 
 @theme {
   --font-sans: var(--font-body), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-  --font-display: var(--font-heading), ui-serif, Georgia, serif;
-  --font-hand: var(--font-handwriting), "Bradley Hand", "Segoe Print", cursive;
+  --font-display: var(--font-body), ui-sans-serif, system-ui, sans-serif;
 
-  /* Primary: warm purple */
-  --color-brand-50: #f5f2fd;
-  --color-brand-100: #ece6fc;
-  --color-brand-200: #d8cdf7;
-  --color-brand-300: #b9a9ee;
-  --color-brand-500: #6a55d4;
-  --color-brand-600: #5140b8;
-  --color-brand-700: #43349a;
-  --color-brand-800: #352a78;
+  /* Primary: deep navy */
+  --color-brand-50: #f0f3f9;
+  --color-brand-100: #e1e6f1;
+  --color-brand-200: #c3cce0;
+  --color-brand-300: #96a3c2;
+  --color-brand-500: #2c3c63;
+  --color-brand-600: #14213d;
+  --color-brand-700: #14213d;
+  --color-brand-800: #0c1528;
 
-  /* Accent: peach */
-  --color-peach-50: #fff7ec;
-  --color-peach-100: #fdecd6;
-  --color-peach-200: #fadbb2;
-  --color-peach-300: #f6c78b;
-  --color-peach-400: #f2b264;
-  --color-peach-700: #8f5517;
+  /* Accent: coral, for the things you tap to act */
+  --color-peach-50: #fff4f0;
+  --color-peach-100: #ffe6dd;
+  --color-peach-200: #ffcfbf;
+  --color-peach-300: #ffa98f;
+  --color-peach-400: #ff6b4a;
+  --color-peach-500: #f2553a;
+  --color-peach-700: #c23a22;
 
-  /* Warm greys, so borders and secondary text don't look cold on cream */
-  --color-slate-50: #faf8f5;
-  --color-slate-100: #f3efea;
-  --color-slate-200: #e9e2ed;
-  --color-slate-300: #d7cfdc;
-  --color-slate-400: #a99fb1;
-  --color-slate-500: #85798b;
-  --color-slate-600: #665d72;
-  --color-slate-700: #4c4459;
+  /* Warm neutrals to sit on the off-white background */
+  --color-slate-50: #fdf9f7;
+  --color-slate-100: #f7efea;
+  --color-slate-200: #f1e6df;
+  --color-slate-300: #e2d5cd;
+  --color-slate-400: #a8a2a6;
+  --color-slate-500: #7a7f91;
+  --color-slate-600: #5c6680;
+  --color-slate-700: #3c4660;
 
-  --color-ink: #2a2440;
-  --color-muted: #726981;
-  --color-canvas: #f4efe4;
-  --color-paper: #fffdf8;
-  --color-note: #ffe3a8;
-  --color-lilac: #e4dcfb;
-  --color-mint: #cfeedd;
+  --color-ink: #14213d;
+  --color-muted: #5c6680;
+  --color-canvas: #fff6f0;
+  --color-paper: #ffffff;
+  --color-note: #ffe6dd;
+  --color-lilac: #e1e6f1;
+  --color-mint: #dcf3e8;
 }
 
 html { -webkit-tap-highlight-color: transparent; }
-body {
-  color: var(--color-ink);
-  overflow-x: hidden;
-  /* Faint dot grid, like a page from a house notebook */
-  background-color: var(--color-canvas);
-  background-image: radial-gradient(rgb(42 36 64 / 0.09) 1px, transparent 1.2px);
-  background-size: 20px 20px;
-}
-h1, h2, h3 { font-family: var(--font-display); font-variation-settings: "SOFT" 100; letter-spacing: -0.015em; }
+body { background: var(--color-canvas); color: var(--color-ink); overflow-x: hidden; }
+h1, h2, h3 { font-family: var(--font-display); letter-spacing: -0.02em; }
 
 /* Visible focus for keyboard users everywhere */
-:focus-visible { outline: 3px solid var(--color-brand-500); outline-offset: 2px; border-radius: 6px; }
+:focus-visible { outline: 3px solid var(--color-peach-400); outline-offset: 2px; border-radius: 6px; }
 
 @utility input {
-  @apply w-full rounded-xl border-2 border-ink/70 bg-white px-3 py-2.5 text-base text-ink placeholder:text-slate-400
-    focus:border-ink focus:outline-none focus:ring-4 focus:ring-brand-200 disabled:bg-slate-100;
+  @apply w-full rounded-2xl border-2 border-slate-200 bg-white px-3.5 py-2.5 text-base text-ink placeholder:text-slate-400
+    focus:border-ink focus:outline-none disabled:bg-slate-100;
 }
 @utility label { @apply mb-1 block text-sm font-medium text-ink; }
-@utility card { @apply rounded-2xl border-2 border-ink bg-paper shadow-[3px_3px_0_var(--color-ink)]; }
-@utility btn { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border-2 border-ink px-4 py-2 text-sm font-bold transition-[transform,box-shadow] duration-100 disabled:cursor-not-allowed disabled:opacity-60 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none; }
-@utility btn-primary { @apply btn bg-brand-600 text-white shadow-[2px_2px_0_var(--color-ink)] hover:bg-brand-700; }
-@utility btn-peach { @apply btn bg-peach-400 text-ink shadow-[2px_2px_0_var(--color-ink)] hover:bg-peach-300; }
-@utility btn-secondary { @apply btn bg-paper text-ink shadow-[2px_2px_0_var(--color-ink)] hover:bg-white; }
-@utility btn-ghost { @apply btn border-transparent text-brand-700 underline decoration-2 underline-offset-4 hover:bg-brand-50 active:shadow-none; }
-@utility btn-danger { @apply btn bg-paper text-red-700 shadow-[2px_2px_0_var(--color-ink)] hover:bg-red-50; }
-@utility chip { @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium; }
+@utility card { @apply rounded-[20px] bg-white shadow-[0_1px_2px_rgb(20_33_61/0.05),0_6px_20px_-8px_rgb(20_33_61/0.10)]; }
+@utility btn { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl px-4 py-2 text-sm font-bold transition active:scale-[.97] disabled:cursor-not-allowed disabled:opacity-60; }
+@utility btn-primary { @apply btn bg-ink text-white hover:bg-brand-500; }
+@utility btn-peach { @apply btn bg-peach-400 text-white hover:bg-peach-500; }
+@utility btn-secondary { @apply btn border-2 border-slate-200 bg-white text-ink hover:border-slate-300; }
+@utility btn-ghost { @apply btn text-peach-700 hover:bg-peach-50; }
+@utility btn-danger { @apply btn border-2 border-red-200 bg-white text-red-700 hover:bg-red-50; }
+@utility chip { @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold; }
 
-/* Tape strip for notes pinned to the "fridge" */
-@utility tape { @apply pointer-events-none absolute -top-2.5 left-1/2 h-5 w-16 -translate-x-1/2 -rotate-2 bg-white/70 shadow-sm ring-1 ring-ink/10; }

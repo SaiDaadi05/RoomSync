@@ -14,8 +14,8 @@ const ITEMS = [
 
 const ADD_ITEMS = [
   { href: "/tasks/new", emoji: "🧽", tone: "bg-mint", label: "A chore or errand", hint: "One-off or repeating" },
-  { href: "/shopping#item-name", emoji: "🛒", tone: "bg-note", label: "Something we need", hint: "Goes on the shared list" },
-  { href: "/expenses/new", emoji: "💸", tone: "bg-lilac", label: "A shared cost", hint: "Split it with the house" },
+  { href: "/shopping#item-name", emoji: "🛒", tone: "bg-peach-100", label: "Something we need", hint: "Goes on the shared list" },
+  { href: "/expenses/new", emoji: "💸", tone: "bg-brand-100", label: "A shared cost", hint: "Split it with the house" },
 ];
 
 function Icon({ d, className = "h-6 w-6" }: { d: string; className?: string }) {
@@ -29,8 +29,8 @@ function Icon({ d, className = "h-6 w-6" }: { d: string; className?: string }) {
 function NavLink({ it, active }: { it: (typeof ITEMS)[number]; active: boolean }) {
   return (
     <Link href={it.href} aria-current={active ? "page" : undefined}
-      className={`flex w-full flex-col items-center gap-0.5 py-1.5 text-[11px] font-bold tracking-wide ${active ? "text-peach-300" : "text-white/60"}`}>
-      <span className={`flex h-8 w-12 items-center justify-center rounded-xl transition ${active ? "bg-white/10" : ""}`}>
+      className={`flex w-full flex-col items-center gap-0.5 py-1.5 text-[11px] font-bold ${active ? "text-ink" : "text-slate-500"}`}>
+      <span className={`flex h-8 w-12 items-center justify-center rounded-xl transition ${active ? "bg-brand-100" : ""}`}>
         <Icon d={it.icon} />
       </span>
       {it.label}
@@ -57,8 +57,8 @@ function AddMenu({ placement }: { placement: "bottom" | "top" }) {
     <div ref={ref} className="relative">
       {placement === "bottom" ? (
         <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-haspopup="menu" aria-label="Add something"
-          className={`-mt-7 flex h-15 w-15 items-center justify-center rounded-2xl border-2 border-ink bg-peach-400 text-ink shadow-[3px_3px_0_var(--color-ink)] transition active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${open ? "rotate-45" : "-rotate-3"}`}>
-          <Icon d="M12 5v14M5 12h14" className="h-7 w-7" />
+          className={`-mt-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-peach-400 text-white shadow-lg shadow-peach-400/40 transition active:scale-95`}>
+          <Icon d="M12 5v14M5 12h14" className={`h-7 w-7 transition-transform ${open ? "rotate-45" : ""}`} />
         </button>
       ) : (
         <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-haspopup="menu" className="btn-peach min-h-10 px-3.5">
@@ -66,11 +66,11 @@ function AddMenu({ placement }: { placement: "bottom" | "top" }) {
         </button>
       )}
       {open && (
-        <div role="menu" className={`absolute z-30 w-64 rounded-2xl border-2 border-ink bg-paper p-2 shadow-[4px_4px_0_var(--color-ink)] ${placement === "bottom" ? "bottom-full left-1/2 mb-3 -translate-x-1/2" : "right-0 top-full mt-2"}`}>
-          <p className="px-3 pb-1 pt-1 font-hand text-xl font-bold text-brand-700">What are we adding?</p>
+        <div role="menu" className={`absolute z-30 w-64 rounded-3xl bg-white p-2 shadow-2xl shadow-ink/20 ring-1 ring-slate-200 ${placement === "bottom" ? "bottom-full left-1/2 mb-8 -translate-x-1/2" : "right-0 top-full mt-2"}`}>
+          <p className="px-3 pb-1 pt-2 text-xs font-bold uppercase tracking-wider text-muted">Add something</p>
           {ADD_ITEMS.map((a) => (
-            <Link key={a.href} href={a.href} role="menuitem" onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-note/60">
-              <span className={`flex h-10 w-10 items-center justify-center rounded-xl border-2 border-ink text-xl ${a.tone}`} aria-hidden>{a.emoji}</span>
+            <Link key={a.href} href={a.href} role="menuitem" onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-2xl px-3 py-2.5 hover:bg-peach-50">
+              <span className={`flex h-10 w-10 items-center justify-center rounded-xl text-xl ${a.tone}`} aria-hidden>{a.emoji}</span>
               <span>
                 <span className="block text-sm font-semibold text-ink">{a.label}</span>
                 <span className="block text-xs text-muted">{a.hint}</span>
@@ -87,7 +87,7 @@ export function BottomNav() {
   const path = usePathname();
   const isActive = (href: string) => path.startsWith(href);
   return (
-    <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-20 rounded-t-3xl border-t-2 border-ink bg-ink pb-[env(safe-area-inset-bottom)] md:hidden">
+    <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
       <ul className="mx-auto grid max-w-lg grid-cols-[1fr_1fr_auto_1fr_1fr] items-end px-1">
         {ITEMS.slice(0, 2).map((it) => <li key={it.href}><NavLink it={it} active={isActive(it.href)} /></li>)}
         <li className="flex justify-center px-2 pb-2"><AddMenu placement="bottom" /></li>
@@ -103,7 +103,7 @@ export function PlannerShortcut() {
   const active = path.startsWith("/planner");
   return (
     <Link href="/planner" aria-label="Planner" aria-current={active ? "page" : undefined}
-      className={`rounded-xl border-2 p-1.5 md:hidden ${active ? "border-ink bg-lilac text-ink" : "border-transparent text-ink hover:border-ink/20"}`}>
+      className={`rounded-xl p-2 md:hidden ${active ? "bg-brand-100 text-ink" : "text-ink hover:bg-slate-100"}`}>
       <Icon d={ITEMS[2]!.icon} />
     </Link>
   );
@@ -119,7 +119,7 @@ export function TopNav() {
           return (
             <li key={it.href}>
               <Link href={it.href} aria-current={active ? "page" : undefined}
-                className={`rounded-xl border-2 px-3 py-1.5 text-sm font-bold ${active ? "border-ink bg-lilac text-ink shadow-[2px_2px_0_var(--color-ink)]" : "border-transparent text-ink/70 hover:text-ink"}`}>
+                className={`rounded-xl px-3 py-2 text-sm font-bold ${active ? "bg-ink text-white" : "text-slate-600 hover:text-ink"}`}>
                 {it.label}
               </Link>
             </li>
