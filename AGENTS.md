@@ -80,15 +80,15 @@ Two agents work on this repo (Claude and Codex), driven by different people. The
 |---|---|---|
 | Scaffold: schema, auth, households, tasks engine | Claude | initial commit on `main` |
 
-### Remaining work (unclaimed unless listed above)
+### Remaining work (GitHub issues; unclaimed unless listed above)
 
-- **Google Calendar live verification:** the code exists (`src/server/calendar/google.ts`) but hasn't been tested against real Google. Needs a Google Cloud OAuth client (README → Google Calendar setup), then a test of connect, free/busy, add-to-calendar, and disconnect. Also: update or delete the Google event when a planned task is rescheduled or completed.
-- **Apple Calendar:** not started. Needs a product decision first: iCloud CalDAV with an app-specific password vs. a native iOS app using EventKit. Check Apple's current docs before choosing.
-- **Email reminders:** configure SMTP and verify the worker sends. Add an unsubscribe link and per-type preferences.
-- **Swap requests with approval:** swaps are currently immediate plus a notification. Add a request → accept/decline flow.
-- **Fairness improvements:** a "rebalance this week" suggestion that proposes reassigning already-assigned tasks (with consent), and fairness history over longer periods.
-- **Receipts storage driver:** add an S3/R2 implementation of `src/server/storage.ts` for hosted deployments.
-- **PWA:** service worker, offline shell, install prompt, and web push (as a separate, clearly labeled notification channel).
-- **Deployment:** hosting, managed Postgres, a scheduled worker, and CI that runs lint, tests, and build on PRs.
-- **Account features:** password reset, email verification, and member removal and role changes by the owner.
-- **Editing expenses** (currently delete and re-add) and editing shopping items inline.
+- (#3) **Google Calendar live verification:** the code exists (`src/server/calendar/google.ts`) but hasn't been tested against real Google. Needs a Google Cloud OAuth client (README → Google Calendar setup), then a test of connect, free/busy, add-to-calendar, and disconnect. Also: update or delete the Google event when a planned task is rescheduled or completed.
+- (#4) **Apple Calendar:** not started. Needs a product decision first: iCloud CalDAV with an app-specific password vs. a native iOS app using EventKit. Check Apple's current docs before choosing.
+- (#5) **Email reminders:** configure SMTP and verify the worker sends. Add an unsubscribe link and per-type preferences.
+- (#6) **Swap requests with approval:** swaps are currently immediate plus a notification. Add a request → accept/decline flow.
+- (#7) **Fairness improvements:** a "rebalance this week" suggestion that proposes reassigning already-assigned tasks (with consent), and fairness history over longer periods.
+- (#8) **Receipts storage driver:** add an S3/R2 implementation of `src/server/storage.ts` for hosted deployments.
+- (#9) **PWA:** service worker, offline shell, install prompt, and web push (as a separate, clearly labeled notification channel).
+- (#10) **Deployment:** hosting, managed Postgres, a scheduled worker, and CI that runs lint, tests, and build on PRs.
+- (#11) **Account features:** password reset, email verification, and member removal and role changes by the owner.
+- (#12) **Editing expenses** (currently delete and re-add) and editing shopping items inline.
