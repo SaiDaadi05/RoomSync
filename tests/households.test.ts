@@ -63,3 +63,23 @@ describe("household isolation", () => {
     ).rejects.toThrow(/member of this household/);
   });
 });
+
+describe("demo mode isolation", () => {
+  it("creates a flagged demo household and blocks mixing demo and real accounts", async () => {
+    process.env.DEMO_MODE_ENABLED = "true";
+    const { createDemoHousehold } = await import("@/server/demo");
+    const { household: demo, user: demoUser } = await createDemoHousehold();
+    expect(demo.isDemo).toBe(true);
+    expect(demoUser.isDemo).toBe(true);
+    expect(demoUser.email).toMatch(/@demo\.roomsync\.invalid$/);
+    const real = await makeHousehold(0);
+    const toReal = await createInvitation(real.owner.id, real.household.id);
+    await expect(acceptInvitation(demoUser.id, toReal.code)).rejects.toThrow(/Demo and real/);
+    const toDemo = await createInvitation(demoUser.id, demo.id);
+    await expect(acceptInvitation(real.owner.id, toDemo.code)).rejects.toThrow(/Demo and real/);
+    // Sample data is present and balances add up
+    const { computeBalances } = await import("@/server/expenses");
+    const { balances } = await computeBalances(demoUser.id, demo.id);
+    expect(balances.reduce((s, b) => s + b.cents, 0)).toBe(0);
+  });
+});

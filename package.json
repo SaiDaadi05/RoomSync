@@ -26,6 +26,7 @@
     "nodemailer": "^10.4.0",
     "react": "^19.1.10",
     "react-dom": "^19.1.10",
+    "server-only": "^0.0.1",
     "zod": "^3.25.76"
   },
   "devDependencies": {

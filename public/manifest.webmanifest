@@ -1,0 +1,9 @@
+{
+  "name": "RoomSync",
+  "short_name": "RoomSync",
+  "start_url": "/home",
+  "display": "standalone",
+  "background_color": "#f6f7fb",
+  "theme_color": "#3f55d6",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}
