@@ -3,23 +3,30 @@ import type { ReactNode } from "react";
 
 export function PageHeader({ title, subtitle, action }: { title: string; subtitle?: ReactNode; action?: ReactNode }) {
   return (
-    <div className="mb-4 flex items-start justify-between gap-3">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-ink">{title}</h1>
-        {subtitle && <p className="mt-0.5 text-sm text-muted">{subtitle}</p>}
+    <div className="mb-5 flex items-start justify-between gap-3">
+      <div className="min-w-0">
+        <h1 className="text-[1.75rem] font-extrabold leading-tight tracking-tight text-ink">{title}</h1>
+        {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
       </div>
-      {action}
+      {action && <div className="shrink-0">{action}</div>}
     </div>
   );
 }
 
-export function Section({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
+/** Section titles may end in " · <n>" (e.g. "Overdue · 3"); the count is shown as a soft pill. */
+export function Section({ title, action, hint, children }: { title: string; action?: ReactNode; hint?: ReactNode; children: ReactNode }) {
+  const m = /^(.*) · (\d+)$/.exec(title);
+  const label = m ? m[1] : title;
   return (
-    <section className="mb-6">
-      <div className="mb-2 flex items-center justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">{title}</h2>
+    <section className="mb-7">
+      <div className="mb-2.5 flex items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2 text-lg font-bold tracking-tight text-ink">
+          {label}
+          {m && <span className="chip bg-brand-100 text-brand-700">{m[2]}</span>}
+        </h2>
         {action}
       </div>
+      {hint && <p className="-mt-1.5 mb-3 text-sm text-muted">{hint}</p>}
       {children}
     </section>
   );
@@ -28,15 +35,27 @@ export function Section({ title, action, children }: { title: string; action?: R
 export function EmptyState({ icon, title, body, action }: { icon: string; title: string; body?: string; action?: ReactNode }) {
   return (
     <div className="card flex flex-col items-center px-6 py-8 text-center">
-      <div className="mb-2 text-3xl" aria-hidden>{icon}</div>
-      <p className="font-semibold text-ink">{title}</p>
+      <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-peach-100 text-3xl" aria-hidden>{icon}</div>
+      <p className="font-display text-base font-bold text-ink">{title}</p>
       {body && <p className="mt-1 max-w-xs text-sm text-muted">{body}</p>}
       {action && <div className="mt-4">{action}</div>}
     </div>
   );
 }
 
-const AVATAR_COLORS = ["bg-rose-100 text-rose-800", "bg-amber-100 text-amber-800", "bg-emerald-100 text-emerald-800", "bg-sky-100 text-sky-800", "bg-violet-100 text-violet-800", "bg-teal-100 text-teal-800"];
+/** App mark: a little house with a check, in the brand purple with a peach door. */
+export function Logo({ className = "h-9 w-9" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 64 64" className={className} aria-hidden>
+      <rect width="64" height="64" rx="18" fill="var(--color-brand-600)" />
+      <path d="M14 33 32 17l18 16v15a3 3 0 0 1-3 3H17a3 3 0 0 1-3-3z" fill="#fff" />
+      <path d="m24 37 6 6 11-12" stroke="var(--color-brand-600)" strokeWidth="4.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="49" cy="15" r="6" fill="var(--color-peach-400)" />
+    </svg>
+  );
+}
+
+const AVATAR_COLORS = ["bg-peach-200 text-peach-700", "bg-brand-100 text-brand-700", "bg-emerald-100 text-emerald-800", "bg-rose-100 text-rose-800", "bg-sky-100 text-sky-800", "bg-amber-100 text-amber-900"];
 
 export function colorFor(id: string) {
   let h = 0;
@@ -44,11 +63,11 @@ export function colorFor(id: string) {
   return AVATAR_COLORS[h % AVATAR_COLORS.length];
 }
 
-export function Avatar({ id, name, size = "md" }: { id: string; name: string; size?: "sm" | "md" }) {
+export function Avatar({ id, name, size = "md" }: { id: string; name: string; size?: "sm" | "md" | "lg" }) {
   const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]!.toUpperCase()).join("") || "?";
-  const s = size === "sm" ? "h-6 w-6 text-[10px]" : "h-9 w-9 text-sm";
+  const s = size === "sm" ? "h-7 w-7 text-[11px]" : size === "lg" ? "h-11 w-11 text-base" : "h-9 w-9 text-sm";
   return (
-    <span title={name} className={`inline-flex shrink-0 items-center justify-center rounded-full font-semibold ${s} ${colorFor(id)}`}>
+    <span title={name} className={`inline-flex shrink-0 items-center justify-center rounded-full font-bold ring-2 ring-white ${s} ${colorFor(id)}`}>
       {initials}
     </span>
   );
@@ -66,13 +85,13 @@ export function Badge({ tone = "slate", children }: { tone?: "slate" | "green" |
   return <span className={`chip ${tones[tone]}`}>{children}</span>;
 }
 
-export function LinkButton({ href, children, variant = "primary" }: { href: string; children: ReactNode; variant?: "primary" | "secondary" | "ghost" }) {
+export function LinkButton({ href, children, variant = "primary" }: { href: string; children: ReactNode; variant?: "primary" | "secondary" | "ghost" | "peach" }) {
   return <Link href={href} className={`btn-${variant}`}>{children}</Link>;
 }
 
 export function DemoBanner() {
   return (
-    <div className="bg-amber-100 px-4 py-1.5 text-center text-xs font-medium text-amber-900" role="status">
+    <div className="bg-ink px-4 py-1.5 text-center text-xs font-medium text-white" role="status">
       Demo mode: sample household with made-up data. Nothing here is real or shared with real accounts.
     </div>
   );

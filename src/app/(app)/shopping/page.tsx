@@ -43,7 +43,7 @@ export default async function ShoppingPage() {
         </ActionForm>
       </div>
 
-      <Section title={`Needed · ${open.length}`}>
+      <Section title={`On the list · ${open.length}`}>
         {open.length === 0 ? (
           <EmptyState icon="🛒" title="The list is empty" body="Add things the household is running low on. Everyone sees the same list, so nothing gets bought twice." />
         ) : (

@@ -1,20 +1,45 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --color-brand-50: #eef4ff;
-  --color-brand-100: #dce8ff;
-  --color-brand-200: #b9d0ff;
-  --color-brand-500: #4f6bed;
-  --color-brand-600: #3f55d6;
-  --color-brand-700: #3343b0;
-  --color-ink: #1c2033;
-  --color-muted: #5d6478;
-  --color-canvas: #f6f7fb;
+  --font-sans: var(--font-body), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-display: var(--font-heading), var(--font-body), ui-sans-serif, system-ui, sans-serif;
+
+  /* Primary: warm purple */
+  --color-brand-50: #f5f2fd;
+  --color-brand-100: #ece6fc;
+  --color-brand-200: #d8cdf7;
+  --color-brand-300: #b9a9ee;
+  --color-brand-500: #6a55d4;
+  --color-brand-600: #5140b8;
+  --color-brand-700: #43349a;
+  --color-brand-800: #352a78;
+
+  /* Accent: peach */
+  --color-peach-50: #fff7ec;
+  --color-peach-100: #fdecd6;
+  --color-peach-200: #fadbb2;
+  --color-peach-300: #f6c78b;
+  --color-peach-400: #f2b264;
+  --color-peach-700: #8f5517;
+
+  /* Warm greys, so borders and secondary text don't look cold on cream */
+  --color-slate-50: #faf8f5;
+  --color-slate-100: #f3efea;
+  --color-slate-200: #e9e2ed;
+  --color-slate-300: #d7cfdc;
+  --color-slate-400: #a99fb1;
+  --color-slate-500: #85798b;
+  --color-slate-600: #665d72;
+  --color-slate-700: #4c4459;
+
+  --color-ink: #302a47;
+  --color-muted: #726981;
+  --color-canvas: #f7f2e9;
 }
 
 html { -webkit-tap-highlight-color: transparent; }
-body { background: var(--color-canvas); color: var(--color-ink); }
+body { background: var(--color-canvas); color: var(--color-ink); overflow-x: hidden; }
+h1, h2, h3 { font-family: var(--font-display); }
 
 /* Visible focus for keyboard users everywhere */
 :focus-visible { outline: 3px solid var(--color-brand-500); outline-offset: 2px; border-radius: 6px; }
@@ -24,9 +49,10 @@ body { background: var(--color-canvas); color: var(--color-ink); }
     focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200 disabled:bg-slate-100;
 }
 @utility label { @apply mb-1 block text-sm font-medium text-ink; }
-@utility card { @apply rounded-2xl border border-slate-200/80 bg-white shadow-sm; }
-@utility btn { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60; }
-@utility btn-primary { @apply btn bg-brand-600 text-white hover:bg-brand-700 active:scale-[.98]; }
+@utility card { @apply rounded-3xl border border-slate-200/80 bg-white shadow-[0_1px_2px_rgb(48_42_71/0.04),0_4px_16px_rgb(48_42_71/0.04)]; }
+@utility btn { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60; }
+@utility btn-primary { @apply btn bg-brand-600 text-white shadow-sm hover:bg-brand-700 active:scale-[.98]; }
+@utility btn-peach { @apply btn bg-peach-400 text-ink shadow-sm hover:bg-peach-300 active:scale-[.98]; }
 @utility btn-secondary { @apply btn border border-slate-300 bg-white text-ink hover:bg-slate-50; }
 @utility btn-ghost { @apply btn text-brand-700 hover:bg-brand-50; }
 @utility btn-danger { @apply btn border border-red-200 bg-white text-red-700 hover:bg-red-50; }

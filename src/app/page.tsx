@@ -1,3 +1,4 @@
+import { Logo } from "@/components/ui";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/server/session";
@@ -15,7 +16,7 @@ export default async function Landing() {
   ];
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
-      <div className="mb-10 flex items-center gap-2 text-xl font-bold"><img src="/icon.svg" alt="" className="h-9 w-9" /> RoomSync</div>
+      <div className="mb-10 flex items-center gap-2 text-xl font-bold"><Logo className="h-9 w-9" /> RoomSync</div>
       <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl">Live together,<br /><span className="text-brand-600">without the chore wars.</span></h1>
       <p className="mt-4 max-w-xl text-lg text-muted">Chores, errands, groceries, shared costs, and schedules for roommates, all in one place.</p>
       <div className="mt-6 flex flex-wrap gap-3">
