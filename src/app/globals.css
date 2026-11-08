@@ -2,7 +2,8 @@
 
 @theme {
   --font-sans: var(--font-body), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-  --font-display: var(--font-heading), var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-heading), ui-serif, Georgia, serif;
+  --font-hand: var(--font-handwriting), "Bradley Hand", "Segoe Print", cursive;
 
   /* Primary: warm purple */
   --color-brand-50: #f5f2fd;
@@ -32,28 +33,42 @@
   --color-slate-600: #665d72;
   --color-slate-700: #4c4459;
 
-  --color-ink: #302a47;
+  --color-ink: #2a2440;
   --color-muted: #726981;
-  --color-canvas: #f7f2e9;
+  --color-canvas: #f4efe4;
+  --color-paper: #fffdf8;
+  --color-note: #ffe3a8;
+  --color-lilac: #e4dcfb;
+  --color-mint: #cfeedd;
 }
 
 html { -webkit-tap-highlight-color: transparent; }
-body { background: var(--color-canvas); color: var(--color-ink); overflow-x: hidden; }
-h1, h2, h3 { font-family: var(--font-display); }
+body {
+  color: var(--color-ink);
+  overflow-x: hidden;
+  /* Faint dot grid, like a page from a house notebook */
+  background-color: var(--color-canvas);
+  background-image: radial-gradient(rgb(42 36 64 / 0.09) 1px, transparent 1.2px);
+  background-size: 20px 20px;
+}
+h1, h2, h3 { font-family: var(--font-display); font-variation-settings: "SOFT" 100; letter-spacing: -0.015em; }
 
 /* Visible focus for keyboard users everywhere */
 :focus-visible { outline: 3px solid var(--color-brand-500); outline-offset: 2px; border-radius: 6px; }
 
 @utility input {
-  @apply w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base text-ink placeholder:text-slate-400
-    focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200 disabled:bg-slate-100;
+  @apply w-full rounded-xl border-2 border-ink/70 bg-white px-3 py-2.5 text-base text-ink placeholder:text-slate-400
+    focus:border-ink focus:outline-none focus:ring-4 focus:ring-brand-200 disabled:bg-slate-100;
 }
 @utility label { @apply mb-1 block text-sm font-medium text-ink; }
-@utility card { @apply rounded-3xl border border-slate-200/80 bg-white shadow-[0_1px_2px_rgb(48_42_71/0.04),0_4px_16px_rgb(48_42_71/0.04)]; }
-@utility btn { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60; }
-@utility btn-primary { @apply btn bg-brand-600 text-white shadow-sm hover:bg-brand-700 active:scale-[.98]; }
-@utility btn-peach { @apply btn bg-peach-400 text-ink shadow-sm hover:bg-peach-300 active:scale-[.98]; }
-@utility btn-secondary { @apply btn border border-slate-300 bg-white text-ink hover:bg-slate-50; }
-@utility btn-ghost { @apply btn text-brand-700 hover:bg-brand-50; }
-@utility btn-danger { @apply btn border border-red-200 bg-white text-red-700 hover:bg-red-50; }
+@utility card { @apply rounded-2xl border-2 border-ink bg-paper shadow-[3px_3px_0_var(--color-ink)]; }
+@utility btn { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border-2 border-ink px-4 py-2 text-sm font-bold transition-[transform,box-shadow] duration-100 disabled:cursor-not-allowed disabled:opacity-60 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none; }
+@utility btn-primary { @apply btn bg-brand-600 text-white shadow-[2px_2px_0_var(--color-ink)] hover:bg-brand-700; }
+@utility btn-peach { @apply btn bg-peach-400 text-ink shadow-[2px_2px_0_var(--color-ink)] hover:bg-peach-300; }
+@utility btn-secondary { @apply btn bg-paper text-ink shadow-[2px_2px_0_var(--color-ink)] hover:bg-white; }
+@utility btn-ghost { @apply btn border-transparent text-brand-700 underline decoration-2 underline-offset-4 hover:bg-brand-50 active:shadow-none; }
+@utility btn-danger { @apply btn bg-paper text-red-700 shadow-[2px_2px_0_var(--color-ink)] hover:bg-red-50; }
 @utility chip { @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium; }
+
+/* Tape strip for notes pinned to the "fridge" */
+@utility tape { @apply pointer-events-none absolute -top-2.5 left-1/2 h-5 w-16 -translate-x-1/2 -rotate-2 bg-white/70 shadow-sm ring-1 ring-ink/10; }

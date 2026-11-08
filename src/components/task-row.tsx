@@ -16,12 +16,12 @@ export function TaskRow({ occ, members, tz, currentUserId, alsoMissed = 0 }: { o
   const overdue = occ.status === "PENDING" && occ.dueAt < new Date();
   const done = occ.status === "DONE";
   return (
-    <li className={`card flex items-center gap-3 p-3 pr-3.5 ${overdue ? "border-rose-200/80" : ""}`}>
+    <li className={`flex items-center gap-3 px-3 py-3 ${overdue ? "bg-rose-50/60" : ""}`}>
       {occ.status === "PENDING" ? (
         <form action={completeAction}>
           <input type="hidden" name="occurrenceId" value={occ.id} />
           <button aria-label={`Mark “${occ.definition.title}” done`}
-            className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-slate-300 bg-white text-transparent transition hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-600 active:scale-95">
+            className="flex h-9 w-9 items-center justify-center rounded-lg border-2 border-ink bg-white text-transparent transition hover:bg-mint hover:text-ink active:scale-95">
             <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={3} aria-hidden><path d="m5 12 5 5 9-10" /></svg>
           </button>
         </form>
@@ -29,18 +29,18 @@ export function TaskRow({ occ, members, tz, currentUserId, alsoMissed = 0 }: { o
         <form action={reopenAction}>
           <input type="hidden" name="occurrenceId" value={occ.id} />
           <button aria-label={`Undo “${occ.definition.title}”`} title="Undo"
-            className={`flex h-10 w-10 items-center justify-center rounded-full ${done ? "bg-emerald-500 text-white" : "bg-slate-200 text-slate-600"}`}>
+            className={`flex h-9 w-9 items-center justify-center rounded-lg border-2 border-ink ${done ? "bg-mint text-ink" : "bg-slate-200 text-slate-600"}`}>
             {done ? <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={3} aria-hidden><path d="m5 12 5 5 9-10" /></svg> : "–"}
           </button>
         </form>
       )}
       <Link href={`/tasks/${occ.definitionId}`} className="min-w-0 flex-1">
-        <p className={`truncate font-semibold ${occ.status !== "PENDING" ? "text-slate-500 line-through" : ""}`}>
-          <span aria-hidden className="mr-1">{CATEGORY_EMOJI[occ.definition.category] ?? "📌"}</span>
+        <p className={`truncate text-[15px] font-bold ${occ.status !== "PENDING" ? "text-slate-500 line-through decoration-2" : ""}`}>
           {occ.definition.title}
         </p>
         <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted">
           <span className={overdue ? "font-semibold text-rose-700" : ""}>{overdue ? "Was due " : ""}{formatDue(occ.dueAt, tz)}</span>
+          <span className="capitalize">{occ.definition.category}</span>
           <span>~{occ.definition.estimatedMinutes} min</span>
           {occ.status === "SKIPPED" && <Badge>Skipped</Badge>}
           {occ.definition.recurrence !== "NONE" && <span aria-label="Repeats">↻</span>}
@@ -53,7 +53,7 @@ export function TaskRow({ occ, members, tz, currentUserId, alsoMissed = 0 }: { o
       ) : occ.status === "PENDING" ? (
         <form action={claimAction}>
           <input type="hidden" name="occurrenceId" value={occ.id} />
-          <button className="chip whitespace-nowrap bg-brand-100 px-3 py-1.5 text-brand-700 hover:bg-brand-200">I'll do it</button>
+          <button className="btn-peach min-h-9 whitespace-nowrap rounded-lg px-3 py-1 text-xs">I'll do it</button>
         </form>
       ) : null}
       {done && occ.completedById && occ.completedById !== occ.assigneeId && (
@@ -80,7 +80,7 @@ export function TaskList({ items, members, tz, currentUserId, collapseRepeats = 
     }
   } else rows.push(...items.map((occ) => ({ occ, alsoMissed: 0 })));
   return (
-    <ul className="space-y-2.5">
+    <ul className="card divide-y-2 divide-dashed divide-ink/15 overflow-hidden">
       {rows.map(({ occ, alsoMissed }) => <TaskRow key={occ.id} occ={occ} members={members} tz={tz} currentUserId={currentUserId} alsoMissed={alsoMissed} />)}
     </ul>
   );

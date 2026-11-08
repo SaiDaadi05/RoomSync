@@ -17,7 +17,7 @@ export default async function Landing() {
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
       <div className="mb-10 flex items-center gap-2 text-xl font-bold"><Logo className="h-9 w-9" /> RoomSync</div>
-      <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl">Live together,<br /><span className="text-brand-600">without the chore wars.</span></h1>
+      <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl">Live together,<br /><span className="italic text-brand-600">without the chore wars.</span></h1>
       <p className="mt-4 max-w-xl text-lg text-muted">Chores, errands, groceries, shared costs, and schedules for roommates, all in one place.</p>
       <div className="mt-6 flex flex-wrap gap-3">
         <Link href="/signup" className="btn-primary px-6 text-base">Get started free</Link>
@@ -25,11 +25,13 @@ export default async function Landing() {
         {demoEnabled() && <form action={startDemoAction}><button className="btn-ghost px-4 text-base">Try the demo →</button></form>}
       </div>
       <ul className="mt-12 grid gap-3 sm:grid-cols-2">
-        {features.map(([icon, title, body]) => (
-          <li key={title} className="card p-5">
-            <p className="text-2xl" aria-hidden>{icon}</p>
-            <p className="mt-2 font-semibold">{title}</p>
+        {features.map(([, title, body], idx) => (
+          <li key={title} className="card flex gap-4 p-5">
+            <span aria-hidden className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-2 border-ink font-display text-lg font-semibold italic shadow-[2px_2px_0_var(--color-ink)] ${["bg-mint", "bg-lilac", "bg-peach-300", "bg-note", "bg-rose-200"][idx % 5]} ${idx % 2 ? "rotate-3" : "-rotate-3"}`}>{idx + 1}</span>
+            <div>
+            <p className="font-bold">{title}</p>
             <p className="mt-1 text-sm text-muted">{body}</p>
+            </div>
           </li>
         ))}
       </ul>

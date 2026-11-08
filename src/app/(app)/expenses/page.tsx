@@ -28,7 +28,7 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
     <>
       <PageHeader title="Money" subtitle="Shared costs and who owes whom" action={<LinkButton href="/expenses/new">+ Add a cost</LinkButton>} />
 
-      <div className={`card mb-7 p-5 ${mine > 0 ? "border-emerald-200 bg-emerald-50" : mine < 0 ? "border-peach-200 bg-peach-50" : ""}`}>
+      <div className={`card mb-7 p-5 ${mine > 0 ? "bg-mint" : mine < 0 ? "bg-peach-200" : ""}`}>
         <p className="text-sm font-medium text-muted">Your balance</p>
         <p className="font-display text-3xl font-extrabold tracking-tight">
           {mine === 0 ? "You're all square 🎉" : mine > 0 ? `You're owed ${formatCents(mine, cur)}` : `You owe ${formatCents(-mine, cur)}`}
@@ -39,7 +39,7 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
               const iPay = s.fromUserId === user.id;
               const other = iPay ? s.toUserId : s.fromUserId;
               return (
-                <li key={`${s.fromUserId}-${s.toUserId}`} className="flex items-center gap-3 rounded-2xl bg-white/80 p-2.5">
+                <li key={`${s.fromUserId}-${s.toUserId}`} className="flex items-center gap-3 rounded-xl border-2 border-ink bg-paper p-2.5">
                   <Avatar id={other} name={nameOf(other)} size="sm" />
                   <span className="flex-1 text-sm">
                     {iPay ? <>Pay <b>{nameOf(other).split(" ")[0]}</b></> : <><b>{nameOf(other).split(" ")[0]}</b> pays you</>} <b className="tabular-nums">{formatCents(s.amountCents, cur)}</b>
