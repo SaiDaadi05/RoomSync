@@ -93,4 +93,21 @@ describe("handoffs", () => {
     await createHandoff(mate.id, { occurrenceId: moves[0].occurrenceId, toUserId: mate.id, source: "rebalance" });
     expect(await rebalanceSuggestions(mate.id, household.id, { from: range.start, to: range.end })).toEqual([]);
   });
+
+  it("cancels requests with someone who has left the household", async () => {
+    const { household, owner, members: [, mate, third] } = await makeHousehold(2);
+    const occ = await assignedTask(household.id, owner.id, owner.id);
+    const toLeaver = await createHandoff(owner.id, { occurrenceId: occ.id, toUserId: mate.id });
+    const occ2 = await assignedTask(household.id, owner.id, third.id, "Dishes");
+    const fromLeaverAsk = await createHandoff(mate.id, { occurrenceId: occ2.id, toUserId: mate.id });
+    // The mate leaves (membership ends; the task stays with its owner).
+    await prisma.membership.updateMany({ where: { householdId: household.id, userId: mate.id }, data: { leftAt: new Date() } });
+
+    expect(await listMyHandoffs(owner.id, household.id)).toEqual([]);
+    expect((await prisma.handoffRequest.findUniqueOrThrow({ where: { id: toLeaver.id } })).status).toBe("CANCELLED");
+    await prisma.handoffRequest.update({ where: { id: fromLeaverAsk.id }, data: { status: "PENDING" } });
+    await expect(respondHandoff(third.id, fromLeaverAsk.id, true)).rejects.toThrow(/left the household/);
+    expect((await prisma.handoffRequest.findUniqueOrThrow({ where: { id: fromLeaverAsk.id } })).status).toBe("CANCELLED");
+    expect((await prisma.taskOccurrence.findUniqueOrThrow({ where: { id: occ2.id } })).assigneeId).toBe(third.id);
+  });
 });

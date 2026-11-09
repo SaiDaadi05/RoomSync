@@ -79,6 +79,11 @@ export async function createHandoff(userId: string, input: unknown) {
   return h;
 }
 
+async function activeIds(householdId: string, userIds: string[]) {
+  const rows = await prisma.membership.findMany({ where: { householdId, userId: { in: [...new Set(userIds)] }, leftAt: null }, select: { userId: true } });
+  return new Set(rows.map((r) => r.userId));
+}
+
 async function loadHandoff(userId: string, id: string) {
   const h = await prisma.handoffRequest.findUnique({ where: { id }, include: { occurrence: { include: { definition: true } } } });
   if (!h) throw notFound("Request");
@@ -99,7 +104,10 @@ export async function respondHandoff(userId: string, id: string, accept: boolean
       await prisma.handoffRequest.update({ where: { id: h.id }, data: { status: "CANCELLED", respondedAt: new Date() } });
       throw invalid("That task changed since the request was sent, so nothing was moved");
     }
-    await assertAllMembers(h.householdId, [h.fromUserId, h.toUserId]);
+    if ((await activeIds(h.householdId, [h.fromUserId, h.toUserId])).size !== 2) {
+      await prisma.handoffRequest.update({ where: { id: h.id }, data: { status: "CANCELLED", respondedAt: new Date() } });
+      throw invalid("One of you has left the household, so this request was cancelled");
+    }
     await prisma.$transaction(async (tx) => {
       // Guarded update: only moves it if it's still pending and still the giver's.
       const res = await tx.taskOccurrence.updateMany({
@@ -144,7 +152,13 @@ export async function listMyHandoffs(userId: string, householdId: string) {
     orderBy: { createdAt: "asc" },
   });
   const now = new Date();
-  return rows.filter((h) => stillValid(h, now)).map((h) => ({
+  // Requests with someone who has since left can never be answered: cancel them so they stop showing.
+  const active = await activeIds(householdId, rows.flatMap((h) => [h.fromUserId, h.toUserId]));
+  const orphaned = rows.filter((h) => !active.has(h.fromUserId) || !active.has(h.toUserId)).map((h) => h.id);
+  if (orphaned.length) {
+    await prisma.handoffRequest.updateMany({ where: { id: { in: orphaned }, status: "PENDING" }, data: { status: "CANCELLED", respondedAt: now } });
+  }
+  return rows.filter((h) => !orphaned.includes(h.id) && stillValid(h, now)).map((h) => ({
     id: h.id,
     occurrenceId: h.occurrenceId,
     title: h.occurrence.definition.title,
