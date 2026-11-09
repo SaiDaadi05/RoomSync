@@ -35,12 +35,12 @@ export type ExpenseInitial = {
 
 type Preview = { per: Record<string, number>; note?: string; error?: string };
 
-export function ExpenseForm({ members, currentUserId, today, initial, action = createExpenseAction, submitLabel = "Save expense" }: {
+export function ExpenseForm({ members, currentUserId, today, initial, prefill, action = createExpenseAction, submitLabel = "Save expense" }: {
   members: { id: string; name: string }[]; currentUserId: string; today: string;
-  initial?: ExpenseInitial; action?: (s: ActionState, fd: FormData) => Promise<ActionState>; submitLabel?: string;
+  initial?: ExpenseInitial; prefill?: { amount?: string; description?: string }; action?: (s: ActionState, fd: FormData) => Promise<ActionState>; submitLabel?: string;
 }) {
   const everyone = members.map((m) => m.id);
-  const [amount, setAmount] = useState(initial?.amount ?? "");
+  const [amount, setAmount] = useState(initial?.amount ?? prefill?.amount ?? "");
   const [method, setMethod] = useState<SplitMethod>(initial?.splitMethod ?? "EQUAL");
   const [included, setIncluded] = useState<string[]>(initial?.participants.length ? initial.participants : everyone);
   const [custom, setCustom] = useState<Record<string, string>>(initial?.custom ?? {});
@@ -93,7 +93,7 @@ export function ExpenseForm({ members, currentUserId, today, initial, action = c
       {initial && <input type="hidden" name="id" value={initial.id} />}
       <div>
         <label className="label" htmlFor="description">What was it for?</label>
-        <input id="description" name="description" required maxLength={140} placeholder="Costco run" defaultValue={initial?.description} className="input" />
+        <input id="description" name="description" required maxLength={140} placeholder="Costco run" defaultValue={initial?.description ?? prefill?.description} className="input" />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>

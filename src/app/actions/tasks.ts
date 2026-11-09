@@ -8,7 +8,10 @@ import {
 } from "@/server/tasks";
 import { requireHousehold, requireUser } from "@/server/session";
 import { toActionError, type ActionState } from "@/server/action";
-import { localToUtc } from "@/lib/time";
+import { localToUtc, todayIn } from "@/lib/time";
+import { parseQuickAdd } from "@/lib/quick-add";
+import { activeMembers } from "@/server/access";
+import { addShoppingItem } from "@/server/shopping";
 
 function taskFromForm(fd: FormData) {
   return {
@@ -143,4 +146,37 @@ export async function nudgeAction(_: ActionState, fd: FormData): Promise<ActionS
   } catch (e) {
     return toActionError(e);
   }
+}
+
+/**
+ * The Home quick-add box. The text is parsed again here with the server's clock, timezone
+ * and member list, so what's saved never depends on what the browser sent as a preview.
+ */
+export async function smartAddAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  let expenseUrl: string | null = null;
+  try {
+    const { user, household } = await requireHousehold();
+    const members = await activeMembers(household.id);
+    const r = parseQuickAdd(String(fd.get("text") ?? ""), { today: todayIn(household.timezone), tz: household.timezone, currentUserId: user.id, members });
+    if (!r) return { error: "Type a chore, a shopping item, or an amount like $20 pizza" };
+    if (r.kind === "expense") {
+      expenseUrl = `/expenses/new?amount=${r.amount}&description=${encodeURIComponent(r.description)}`;
+    } else if (r.kind === "shopping") {
+      await addShoppingItem(user.id, household.id, { name: r.name, quantity: r.quantity });
+      revalidatePath("/shopping");
+      revalidatePath("/home");
+      return { ok: true, message: `Added “${r.name}” to the shopping list` };
+    } else {
+      const assigneeId = r.assigneeId ?? (fd.get("mine") === "on" ? user.id : null);
+      await createTask(user.id, household.id, {
+        title: r.title, category: r.category, estimatedMinutes: 15, recurrence: r.recurrence, interval: r.interval, weekdays: r.weekdays,
+        startsOn: r.startsOn, dueTime: r.dueTime, assignmentMode: assigneeId ? "FIXED" : "UNASSIGNED", assigneeId,
+      });
+      refresh();
+      return { ok: true, message: `Added “${r.title}”` };
+    }
+  } catch (e) {
+    return toActionError(e);
+  }
+  redirect(expenseUrl);
 }

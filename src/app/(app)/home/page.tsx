@@ -118,7 +118,7 @@ export default async function HomePage() {
 
       <div className="grid grid-cols-1 gap-x-12 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0">
-          <div className="mb-8"><QuickAddTask /></div>
+          <div className="mb-8"><QuickAddTask today={now.toISODate()!} tz={tz} currentUserId={user.id} members={members.map((m) => ({ id: m.id, name: m.name }))} /></div>
 
           {members.length === 1 && (
             <div className="card mb-8 flex items-center gap-3 p-4">
