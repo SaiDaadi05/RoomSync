@@ -70,10 +70,12 @@ export async function resetPassword(token: string, next: string, now = new Date(
   // Claim the link atomically so two submits can't both use it.
   const claimed = await prisma.passwordReset.updateMany({ where: { id: r.id, usedAt: null }, data: { usedAt: now } });
   if (!claimed.count) throw invalid("This reset link has expired or was already used. Ask for a new one.");
+  const { email } = await prisma.user.findUniqueOrThrow({ where: { id: r.userId }, select: { email: true } });
   await prisma.$transaction([
     prisma.user.update({ where: { id: r.userId }, data: { passwordHash: await bcrypt.hash(pw, 12) } }),
     prisma.session.deleteMany({ where: { userId: r.userId } }),
     prisma.passwordReset.deleteMany({ where: { userId: r.userId, id: { not: r.id } } }),
+    prisma.loginFailure.deleteMany({ where: { email } }), // a fresh password lifts any login lock
   ]);
   return r.userId;
 }

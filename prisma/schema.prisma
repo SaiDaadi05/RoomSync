@@ -598,3 +598,13 @@ model PasswordReset {
 
   @@index([userId, createdAt])
 }
+
+/// A failed login, kept for 15 minutes to slow down password guessing. Keyed by email so it
+/// also covers emails with no account.
+model LoginFailure {
+  id        String   @id @default(cuid())
+  email     String
+  createdAt DateTime @default(now())
+
+  @@index([email, createdAt])
+}

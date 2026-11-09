@@ -81,3 +81,40 @@ describe("password reset", () => {
     await expect(requestPasswordReset("a@b.co", null)).rejects.toThrow(/isn't set up/);
   });
 });
+
+describe("login guessing limit", () => {
+  it("locks an email for 15 minutes after 10 wrong passwords, even the right one", async () => {
+    const u = await makeUser("Lock");
+    const t0 = new Date();
+    for (let i = 0; i < 10; i++) await expect(verifyLogin(u.email, "nope-" + i, t0)).rejects.toThrow(/incorrect/);
+    await expect(verifyLogin(u.email, "password123", t0)).rejects.toThrow(/Too many tries/);
+    // Other accounts are unaffected.
+    const other = await makeUser("Free");
+    await expect(verifyLogin(other.email, "password123", t0)).resolves.toMatchObject({ id: other.id });
+    // After the window it works, and a success clears the count.
+    const later = new Date(t0.getTime() + 16 * 60_000);
+    await expect(verifyLogin(u.email, "password123", later)).resolves.toMatchObject({ id: u.id });
+    expect(await prisma.loginFailure.count({ where: { email: u.email } })).toBe(0);
+  });
+
+  it("a wrong password a few times doesn't lock you out", async () => {
+    const u = await makeUser("Few");
+    for (let i = 0; i < 3; i++) await expect(verifyLogin(u.email, "wrong")).rejects.toThrow(/incorrect/);
+    await expect(verifyLogin(u.email, "password123")).resolves.toBeTruthy();
+  });
+});
+
+describe("clean up", () => {
+  it("drops expired sessions and stale login records, keeps live ones", async () => {
+    const { cleanUp } = await import("@/server/jobs");
+    const u = await makeUser("Clean");
+    const live = await createSession(u.id);
+    await prisma.session.create({ data: { id: "expired-session", userId: u.id, expiresAt: new Date(Date.now() - 1000) } });
+    await prisma.loginFailure.create({ data: { email: "x@y.z", createdAt: new Date(Date.now() - 2 * 86400_000) } });
+    await prisma.loginFailure.create({ data: { email: "x@y.z" } });
+    await cleanUp();
+    expect(await prisma.session.count()).toBe(1);
+    expect(await getUserBySessionToken(live.token)).not.toBeNull();
+    expect(await prisma.loginFailure.count()).toBe(1);
+  });
+});
