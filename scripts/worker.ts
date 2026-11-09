@@ -1,24 +1,19 @@
 /**
- * Background worker: adds recurring bills, generates reminders, and delivers emails.
+ * Background worker: adds recurring bills, generates reminders and weekly recaps, and delivers emails.
  * Run alongside the web app:  npm run worker
  * Or as a cron job:            npm run worker -- --once
  */
 import "dotenv/config";
-import { generateReminders, deliverEmails } from "../src/server/reminders";
-import { generateWeeklyRecaps } from "../src/server/recap";
 import { prisma } from "../src/server/db";
-import { ensureAllBillExpenses } from "../src/server/bills";
+import { runBackgroundJobs } from "../src/server/jobs";
 
 const INTERVAL_MS = Number(process.env.WORKER_INTERVAL_MS || 5 * 60_000);
 
 async function tick() {
   const started = Date.now();
   try {
-    const bills = await ensureAllBillExpenses();
-    const created = await generateReminders();
-    const recaps = await generateWeeklyRecaps();
-    const sent = await deliverEmails();
-    console.log(`[worker] ${new Date().toISOString()} bills_added=${bills} reminders=${created} recaps=${recaps} emails_sent=${sent} (${Date.now() - started}ms)`);
+    const r = await runBackgroundJobs();
+    console.log(`[worker] ${new Date().toISOString()} bills_added=${r.billsAdded} reminders=${r.reminders} recaps=${r.recaps} emails_sent=${r.emailsSent} (${Date.now() - started}ms)`);
   } catch (e) {
     console.error("[worker] tick failed", e);
   }

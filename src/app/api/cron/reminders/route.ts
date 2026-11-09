@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { generateReminders, deliverEmails } from "@/server/reminders";
+import { runBackgroundJobs } from "@/server/jobs";
 
 /**
  * Serverless version of `npm run worker -- --once`, for hosts without a long-running process.
@@ -21,7 +21,6 @@ function authorized(req: Request) {
 export async function GET(req: Request) {
   if (!authorized(req)) return new Response("Unauthorized", { status: 401 });
   const started = Date.now();
-  const reminders = await generateReminders();
-  const emailsSent = await deliverEmails();
-  return Response.json({ reminders, emailsSent, ms: Date.now() - started });
+  const result = await runBackgroundJobs();
+  return Response.json({ ...result, ms: Date.now() - started });
 }
