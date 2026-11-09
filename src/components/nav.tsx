@@ -29,7 +29,7 @@ function Icon({ d, className = "h-6 w-6" }: { d: string; className?: string }) {
 function NavLink({ it, active }: { it: (typeof ITEMS)[number]; active: boolean }) {
   return (
     <Link href={it.href} aria-current={active ? "page" : undefined}
-      className={`flex w-full flex-col items-center gap-0.5 py-2 text-[11px] ${active ? "font-semibold text-peach-400" : "font-medium text-slate-600"}`}>
+      className={`flex w-full flex-col items-center gap-0.5 py-2 text-[11px] ${active ? "font-semibold text-peach-500" : "font-medium text-slate-600"}`}>
       <span className="flex h-7 w-12 items-center justify-center">
         <Icon d={it.icon} />
       </span>

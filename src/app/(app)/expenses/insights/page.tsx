@@ -39,9 +39,10 @@ export default async function InsightsPage({ searchParams }: { searchParams: Pro
 
       <Section title="Last 6 months">
         <figure className="card p-4">
-          <div className="flex h-36 items-end gap-2" role="img" aria-label={`Household spending by month: ${r.trend.map((t) => `${t.label} ${money(t.total)}`).join(", ")}`}>
+          <div className="flex h-36 items-end gap-2">
             {r.trend.map((t) => (
               <Link key={t.month} href={`/expenses/insights?month=${t.month}`} title={`${t.label}: ${money(t.total)} total, your share ${money(t.mine)}`}
+                aria-label={`${t.label}: ${money(t.total)} total, your share ${money(t.mine)}`} aria-current={t.month === r.month ? "page" : undefined}
                 className="group flex h-full flex-1 flex-col justify-end">
                 <div className={`rounded-t ${t.month === r.month ? "bg-brand-600" : "bg-brand-200 group-hover:bg-brand-300"}`} style={{ height: `${Math.max(t.total ? 3 : 0, (t.total / maxTrend) * 100)}%` }} />
               </Link>
