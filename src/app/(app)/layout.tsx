@@ -4,11 +4,13 @@ import { unreadCount } from "@/server/notifications";
 import { BottomNav, PlannerShortcut, TopNav } from "@/components/nav";
 import { Avatar, DemoBanner, Logo } from "@/components/ui";
 import { HouseholdSwitcher } from "@/components/household-switcher";
+import { TourProvider } from "@/components/tour/tour";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, household, households } = await requireHousehold();
   const unread = await unreadCount(user.id);
   return (
+    <TourProvider autoStart={household.isDemo}>
     <div className="min-h-dvh pb-24 md:pb-10">
       {household.isDemo && <DemoBanner />}
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white">
@@ -41,5 +43,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <main className="mx-auto max-w-3xl px-4 py-6 has-[[data-wide]]:max-w-6xl md:px-6">{children}</main>
       <BottomNav />
     </div>
+    </TourProvider>
   );
 }
