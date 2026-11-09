@@ -3,31 +3,38 @@ import { requireHousehold } from "@/server/session";
 import { getHouseholdOverview, listInvitations } from "@/server/households";
 import { emailConfigured } from "@/server/notifications";
 import { prisma } from "@/server/db";
-import { COMMON_TIMEZONES, minutesToHHMM } from "@/lib/time";
+import { COMMON_TIMEZONES, minutesToHHMM, todayIn } from "@/lib/time";
+import { activeAway } from "@/lib/away";
 import { Avatar, Badge, PageHeader, Section } from "@/components/ui";
 import { CopyButton } from "@/components/copy-button";
 import { MemberActions } from "@/components/member-actions";
 import { openTaskCounts } from "@/server/members";
 import { moveOutPlan } from "@/server/moveout";
-import { HouseRulesForm, HouseholdForm, InviteForm, LeaveForm, PayHandlesForm, PreferencesForm } from "@/components/settings-forms";
+import { AwayForm, ChangePasswordForm, HouseRulesForm, HouseholdForm, InviteForm, LeaveForm, PayHandlesForm, PreferencesForm } from "@/components/settings-forms";
 import { getPayHandles } from "@/server/payments";
 import { revokeInviteAction } from "@/app/actions/households";
 import { logoutAction } from "@/app/actions/auth";
 import { googleConfigured } from "@/server/calendar/google";
 import { disconnectCalendarAction } from "@/app/actions/planner";
+import { CalendarFeedRow } from "@/components/calendar-feed";
+import { PushToggle } from "@/components/push-toggle";
+import { countPushDevices, pushConfigured, vapidPublicKey } from "@/server/push";
+import { getFeed } from "@/server/calendar/feed";
 
 export const metadata = { title: "Household & settings" };
 
-export default async function HouseholdPage({ searchParams }: { searchParams: Promise<{ calendar?: string; member?: string; released?: string }> }) {
+export default async function HouseholdPage({ searchParams }: { searchParams: Promise<{ calendar?: string; feed?: string; member?: string; released?: string }> }) {
   const { user, household } = await requireHousehold();
   const sp = await searchParams;
-  const [{ members, role }, invites, connections, openCounts, myPlan, handleMap] = await Promise.all([
+  const [{ members, role }, invites, connections, openCounts, myPlan, handleMap, feed, pushDevices] = await Promise.all([
     getHouseholdOverview(user.id, household.id),
     listInvitations(user.id, household.id),
     prisma.calendarConnection.findMany({ where: { userId: user.id }, select: { id: true, provider: true, status: true, accountEmail: true, lastSyncAt: true, lastError: true } }),
     openTaskCounts(user.id, household.id),
     moveOutPlan(user.id, household.id, user.id),
     getPayHandles([user.id]),
+    getFeed(user.id, household.id),
+    countPushDevices(user.id),
   ]);
   const released = Number(sp.released ?? 0);
   const myHandles = handleMap.get(user.id) ?? { venmoHandle: null, paypalHandle: null, cashtag: null };
@@ -53,6 +60,7 @@ export default async function HouseholdPage({ searchParams }: { searchParams: Pr
                   <div className="flex-1">
                     <p className="font-medium">{m.name}{m.id === user.id && " (you)"}</p>
                     <p className="text-xs text-muted">{m.email}</p>
+                    {(() => { const a = activeAway(m, todayIn(household.timezone)); return a && <p className="text-xs font-medium text-amber-800">{a.now ? "Away until" : "Away from"} {new Date(`${a.now ? a.until : a.from}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}</p>; })()}
                   </div>
                   {m.role === "OWNER" && <Badge tone="blue">Owner</Badge>}
                 </div>
@@ -111,7 +119,7 @@ export default async function HouseholdPage({ searchParams }: { searchParams: Pr
       </Section>
 
       <Section title="Calendars">
-        <div className="card divide-y divide-slate-100">
+        <div id="calendars" className="card divide-y divide-slate-100">
           {sp.calendar && (
             <p role="status" className={`px-4 py-2 text-sm ${sp.calendar === "connected" ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800"}`}>
               {sp.calendar === "connected" ? "Google Calendar connected." : `Google Calendar connection failed (${sp.calendar}).`}
@@ -134,14 +142,8 @@ export default async function HouseholdPage({ searchParams }: { searchParams: Pr
               <a href="/api/calendar/google/connect" className="btn-primary min-h-9 text-xs">{google ? "Reconnect" : "Connect"}</a>
             ))}
           </div>
-          <div className="flex items-center gap-3 p-4">
-            <span className="text-2xl" aria-hidden>🍎</span>
-            <div className="flex-1">
-              <p className="font-medium">Apple Calendar</p>
-              <p className="text-xs text-muted">Planned. Not available yet. Until then, enter your free times manually in the planner.</p>
-            </div>
-            <Badge>Coming later</Badge>
-          </div>
+          {sp.feed && <p role="status" className="bg-emerald-50 px-4 py-2 text-sm text-emerald-800">{sp.feed === "ready" ? "Your calendar link is ready. Add it to your calendar app below." : "Calendar link turned off. Old copies no longer work."}</p>}
+          <CalendarFeedRow feed={feed} />
           <div className="p-4 text-sm">
             <Link href="/planner/availability" className="font-semibold text-brand-700">Set your weekly availability manually →</Link>
           </div>
@@ -154,6 +156,12 @@ export default async function HouseholdPage({ searchParams }: { searchParams: Pr
         </div>
       </Section>
 
+      <Section title="Away" hint="Going home for the weekend or on a trip? Chores and the planner skip you.">
+        <div id="away" className="card p-4">
+          <AwayForm today={todayIn(household.timezone)} away={activeAway(members.find((m) => m.id === user.id)!, todayIn(household.timezone))} />
+        </div>
+      </Section>
+
       <Section title="Your preferences">
         <div className="card p-4">
           <PreferencesForm
@@ -161,13 +169,21 @@ export default async function HouseholdPage({ searchParams }: { searchParams: Pr
             emailAvailable={emailConfigured()}
             user={{ name: user.name, timezone: user.timezone, preferredStart: minutesToHHMM(user.preferredStartMin), preferredEnd: minutesToHHMM(user.preferredEndMin), notifyInApp: user.notifyInApp, notifyEmail: user.notifyEmail }}
           />
+          <div className="mt-4 border-t border-slate-200 pt-4"><PushToggle publicKey={pushConfigured() ? vapidPublicKey() : null} devices={pushDevices} /></div>
         </div>
       </Section>
+
+      {!user.isDemo && (
+        <Section title="Password">
+          <div id="password" className="card p-4"><ChangePasswordForm email={user.email} /></div>
+        </Section>
+      )}
 
       <div className="space-y-3">
         <Link href="/onboarding" className="btn-secondary w-full">Create or join another household</Link>
         <form action={logoutAction}><button className="btn-secondary w-full">Log out</button></form>
         <LeaveForm openTasks={openCounts.get(user.id) ?? 0} viewerId={user.id} plan={{ userId: user.id, cents: myPlan.cents, currency: household.currency, payments: myPlan.payments }} />
+        {!user.isDemo && <p className="pt-2 text-center text-xs"><Link href="/delete-account" className="text-muted underline">Delete my account</Link></p>}
       </div>
     </>
   );

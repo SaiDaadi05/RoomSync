@@ -41,3 +41,15 @@ jobs:
           npm test
       - name: Production build
         run: npm run build
+      - name: Seed demo data for browser tests
+        run: npm run db:seed
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+      - name: Browser smoke tests (phone size, accessibility, household isolation)
+        run: |
+          npx next start -p 3000 > /tmp/next.log 2>&1 &
+          for i in $(seq 1 60); do curl -fs http://localhost:3000/login > /dev/null && break; sleep 1; done
+          npm run e2e
+      - name: Server log on failure
+        if: failure()
+        run: tail -100 /tmp/next.log || true

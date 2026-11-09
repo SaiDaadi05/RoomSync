@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { prisma } from "./db";
-import { assertAllMembers, requireMember } from "./access";
+import { activeMembers, assertAllMembers, requireMember } from "./access";
+import { DateTime } from "luxon";
+import { isAwayOn } from "@/lib/away";
 import { AppError, forbidden, invalid, notFound } from "./errors";
 import { notify } from "./notifications";
 import { workloadSummary } from "./planner";
@@ -188,6 +190,15 @@ export async function rebalanceSuggestions(userId: string, householdId: string, 
     prisma.handoffRequest.findMany({ where: { householdId, status: "PENDING" }, select: { occurrenceId: true } }),
   ]);
   const busy = new Set(pending.map((p) => p.occurrenceId));
+  const [members, household] = await Promise.all([
+    activeMembers(householdId),
+    prisma.household.findUniqueOrThrow({ where: { id: householdId }, select: { timezone: true } }),
+  ]);
+  const availableOn = (due: Date, base: string[] | null) => {
+    const day = DateTime.fromJSDate(due).setZone(household.timezone).toISODate()!;
+    const ids = (base && base.length ? base : members.map((m) => m.id)).filter((id) => { const m = members.find((x) => x.id === id); return m && !isAwayOn(m, day); });
+    return ids;
+  };
   const tasks: FairTask[] = occs
     .filter((o) => !busy.has(o.id) && o.definition.assignmentMode !== "FIXED")
     .map((o) => ({
@@ -195,7 +206,7 @@ export async function rebalanceSuggestions(userId: string, householdId: string, 
       title: o.definition.title,
       assigneeId: o.assigneeId!,
       minutes: o.definition.estimatedMinutes,
-      eligible: o.definition.eligibleUserIds.length > 0 ? o.definition.eligibleUserIds : null,
+      eligible: availableOn(o.dueAt, o.definition.eligibleUserIds),
     }));
   return suggestRebalance(people, tasks);
 }

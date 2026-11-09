@@ -7,6 +7,7 @@ import { computeBalances } from "@/server/expenses";
 import { listShopping } from "@/server/shopping";
 import { listSwapRequests } from "@/server/planner";
 import { formatCents } from "@/lib/money";
+import { isAwayOn } from "@/lib/away";
 import { CategoryIcon, TaskList } from "@/components/task-row";
 import { QuickAddTask } from "@/components/quick-add";
 import { InstallPrompt } from "@/components/pwa";
@@ -90,6 +91,10 @@ export default async function HomePage() {
         </div>
         <h1 className="mt-1 text-[1.9rem] font-bold leading-tight md:text-[2.25rem]">{greeting}, {firstName(user.name)}</h1>
         <p className="mt-1 text-[15px] text-muted">{headline}</p>
+        {(() => {
+          const away = members.filter((m) => m.id !== user.id && isAwayOn(m, now.toISODate()!));
+          return away.length > 0 && <p className="mt-1 text-sm text-muted">{away.map((m) => `${firstName(m.name)} is away until ${DateTime.fromISO(m.awayUntil!).toFormat("ccc LLL d")}`).join(" · ")}.</p>;
+        })()}
       </div>
 
       <InstallPrompt />
@@ -118,7 +123,7 @@ export default async function HomePage() {
 
       <div className="grid grid-cols-1 gap-x-12 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0">
-          <div className="mb-8"><QuickAddTask /></div>
+          <div className="mb-8"><QuickAddTask today={now.toISODate()!} tz={tz} currentUserId={user.id} members={members.map((m) => ({ id: m.id, name: m.name }))} /></div>
 
           {members.length === 1 && (
             <div className="card mb-8 flex items-center gap-3 p-4">
