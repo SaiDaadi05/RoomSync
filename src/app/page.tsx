@@ -25,7 +25,8 @@ export default async function Landing() {
           <nav className="flex items-center gap-2.5">
             <Logo className="h-9 w-9" />
             <span className="text-xl font-bold text-peach-400">RoomSync</span>
-            <Link href="/login" className="ml-auto rounded-full px-4 py-2 text-sm font-semibold hover:bg-slate-100">Log in</Link>
+            <Link href="/how-it-works" className="ml-auto rounded-full px-4 py-2 text-sm font-semibold hover:bg-slate-100">How it works</Link>
+            <Link href="/login" className="rounded-full px-4 py-2 text-sm font-semibold hover:bg-slate-100">Log in</Link>
           </nav>
           <div className="mt-10 grid items-center gap-12 md:mt-16 md:grid-cols-[1.1fr_1fr]">
             <div>
@@ -39,6 +40,7 @@ export default async function Landing() {
                 {demoEnabled() && (
                   <form action={startDemoAction}><button className="btn-secondary px-5 text-base">Try the demo house</button></form>
                 )}
+                <Link href="/how-it-works" className="px-2 py-2 text-base font-semibold underline underline-offset-4">See how it works</Link>
               </div>
             </div>
             <PhonePreview />
