@@ -12,7 +12,7 @@ export const metadata = {
 export default function HowItWorks() {
   const demo = demoEnabled();
   return (
-    <main className="bg-white">
+    <main>
       <header className="mx-auto flex max-w-6xl items-center gap-2.5 px-5 py-4 md:px-8">
         <Link href="/" className="flex items-center gap-2.5" aria-label="RoomSync home">
           <Logo className="h-8 w-8" />

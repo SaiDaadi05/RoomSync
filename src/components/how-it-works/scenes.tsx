@@ -25,7 +25,7 @@ function Face({ who, size = "h-7 w-7 text-[11px]" }: { who: Who; size?: string }
 
 function Check({ on }: { on: boolean }) {
   return (
-    <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-colors duration-300 ${on ? "border-ink bg-ink text-white" : "border-slate-400 bg-white"}`}>
+    <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-colors duration-300 ${on ? "border-ink bg-ink text-white" : "border-slate-400 bg-paper"}`}>
       <svg viewBox="0 0 24 24" className={`h-4 w-4 transition-transform duration-300 ${on ? "scale-100" : "scale-0"}`} fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 5 5 9-10" /></svg>
     </span>
   );
@@ -87,7 +87,7 @@ export function ChoreScene({ p }: { p: number }) {
   const next = seg(p, 0.6, 0.8);
   return (
     <div>
-      <div className="mb-4 rounded-2xl border border-slate-300 bg-white p-3 shadow-[0_6px_20px_rgba(0,0,0,0.08)]" style={{ opacity: ease(notif), transform: `translateY(${(1 - ease(notif)) * -24}px)` }}>
+      <div className="mb-4 rounded-2xl border border-slate-300 bg-paper p-3 shadow-[0_6px_20px_rgba(0,0,0,0.08)]" style={{ opacity: ease(notif), transform: `translateY(${(1 - ease(notif)) * -24}px)` }}>
         <p className="text-[11px] text-muted">RoomSync · now</p>
         <p className="text-[13px] font-semibold">Trash goes out tonight</p>
         <p className="text-[12px] text-muted">It&apos;s your turn, Sam. About 10 minutes.</p>
@@ -163,7 +163,7 @@ export function SplitScene({ p }: { p: number }) {
         <p className="text-[11px] text-muted">Paid by Maya · split equally</p>
         <div className="mt-3 flex h-3 gap-0.5 overflow-hidden rounded-full">
           {shares.map(([who], i) => (
-            <div key={who} className={`h-full ${["bg-amber-300", "bg-sky-300", "bg-emerald-300"][i]}`} style={{ flexGrow: 1, opacity: 0.25 + 0.75 * split, marginLeft: i ? `${split * 4}px` : 0 }} />
+            <div key={who} className={`h-full ${["bg-amber-200", "bg-sky-200", "bg-emerald-200"][i]}`} style={{ flexGrow: 1, opacity: 0.25 + 0.75 * split, marginLeft: i ? `${split * 4}px` : 0 }} />
           ))}
         </div>
         <div className="mt-2 grid grid-cols-3 gap-1 text-center">
@@ -246,7 +246,7 @@ export function BillsScene({ p }: { p: number }) {
           return (
             <div key={m} className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 transition-all duration-500 ${on ? "border-slate-300 opacity-100" : "translate-y-2 border-transparent opacity-0"}`}>
               <span className="w-8 text-[11px] font-semibold text-muted">{m} 1</span>
-              <span className="flex flex-1 -space-x-1.5">{people.map((w) => <Face key={w} who={w} size="h-6 w-6 text-[10px] ring-2 ring-white" />)}</span>
+              <span className="flex flex-1 -space-x-1.5">{people.map((w) => <Face key={w} who={w} size="h-6 w-6 text-[10px] ring-2 ring-paper" />)}</span>
               <span className="text-[12px] tabular-nums text-muted">{money(360000 / people.length)} each</span>
             </div>
           );

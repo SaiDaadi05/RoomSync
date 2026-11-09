@@ -171,7 +171,7 @@ function TourOverlay({ index, onBack, onNext, onClose }: { index: number; onBack
           aria-modal="true"
           aria-labelledby="tour-title"
           aria-describedby="tour-body"
-          className={`absolute inset-x-4 mx-auto max-w-md rounded-2xl border border-slate-300 bg-white p-5 shadow-[0_6px_24px_rgba(0,0,0,0.18)] md:inset-x-auto md:right-6 md:mx-0 md:w-[400px] ${
+          className={`absolute inset-x-4 mx-auto max-w-md rounded-2xl border border-slate-300 bg-paper p-5 shadow-[0_6px_24px_rgba(0,0,0,0.18)] md:inset-x-auto md:right-6 md:mx-0 md:w-[400px] ${
             cardOnTop ? "top-4" : "bottom-24 md:bottom-6"
           }`}
         >
