@@ -39,6 +39,9 @@ model User {
   memberships         Membership[]
   availability        AvailabilityWindow[]
   calendarConnections CalendarConnection[]
+  calendarFeeds       CalendarFeed[]
+  pushSubscriptions   PushSubscription[]
+  passwordResets      PasswordReset[]
   notifications       Notification[]
 }
 
@@ -60,16 +63,16 @@ enum Role {
 }
 
 model Household {
-  id        String   @id @default(cuid())
-  name      String
-  timezone  String   @default("America/New_York")
-  currency  String   @default("USD")
-  isDemo    Boolean  @default(false)
-  createdAt DateTime @default(now())
+  id            String   @id @default(cuid())
+  name          String
+  timezone      String   @default("America/New_York")
+  currency      String   @default("USD")
+  isDemo        Boolean  @default(false)
+  createdAt     DateTime @default(now())
   // House rules (free text) and quiet hours (minutes after local midnight; may wrap past midnight).
-  rules          String?
-  quietStartMin  Int?
-  quietEndMin    Int?
+  rules         String?
+  quietStartMin Int?
+  quietEndMin   Int?
 
   memberships      Membership[]
   invitations      Invitation[]
@@ -83,6 +86,7 @@ model Household {
   handoffs         HandoffRequest[]
   assistantActions AssistantAction[]
   recurringBills   RecurringBill[]
+  calendarFeeds    CalendarFeed[]
 }
 
 model Membership {
@@ -94,6 +98,10 @@ model Membership {
   role        Role      @default(MEMBER)
   joinedAt    DateTime  @default(now())
   leftAt      DateTime?
+  // Away mode: household-local dates (YYYY-MM-DD), inclusive. New chore slots in this window
+  // aren't assigned to them, and the planner treats them as unavailable.
+  awayFrom    String?
+  awayUntil   String?
 
   @@unique([householdId, userId])
   @@index([userId])
@@ -297,6 +305,23 @@ enum ConnectionStatus {
   REVOKED
 }
 
+// A private "subscribe" link for Apple, Google or any calendar app that reads iCalendar
+// (.ics) URLs. Read-only: it lists the subscriber's own chores in one household.
+// The token is looked up by hash and kept encrypted so the owner can copy the link again.
+model CalendarFeed {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  householdId   String
+  household     Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  tokenHash     String    @unique
+  tokenEnc      String
+  createdAt     DateTime  @default(now())
+  lastFetchedAt DateTime?
+
+  @@unique([userId, householdId])
+}
+
 model CalendarConnection {
   id              String           @id @default(cuid())
   userId          String
@@ -492,6 +517,7 @@ model Notification {
 enum DeliveryChannel {
   IN_APP
   EMAIL
+  PUSH
 }
 
 enum DeliveryStatus {
@@ -499,6 +525,23 @@ enum DeliveryStatus {
   SENT
   FAILED
   SKIPPED // channel not configured or user opted out
+}
+
+// A browser or installed-app push endpoint (Web Push). Keys are the public parts the
+// browser hands out; they let the server encrypt messages only that device can read.
+model PushSubscription {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint      String    @unique
+  p256dh        String
+  auth          String
+  userAgent     String?
+  createdAt     DateTime  @default(now())
+  lastSuccessAt DateTime?
+  failures      Int       @default(0)
+
+  @@index([userId])
 }
 
 model NotificationDelivery {
@@ -541,4 +584,27 @@ model AssistantAction {
   decidedAt   DateTime?
 
   @@index([userId, status])
+}
+
+/// One-time password reset link. Only a hash of the token is stored; it expires after an hour.
+model PasswordReset {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+/// A failed login, kept for 15 minutes to slow down password guessing. Keyed by email so it
+/// also covers emails with no account.
+model LoginFailure {
+  id        String   @id @default(cuid())
+  email     String
+  createdAt DateTime @default(now())
+
+  @@index([email, createdAt])
 }

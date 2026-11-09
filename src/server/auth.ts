@@ -61,12 +61,23 @@ export async function signUp(input: unknown): Promise<PublicUser> {
   });
 }
 
-export async function verifyLogin(emailRaw: string, password: string): Promise<PublicUser> {
-  const email = String(emailRaw ?? "").trim().toLowerCase();
+export const LOGIN_MAX_FAILURES = 10;
+export const LOGIN_LOCK_MINUTES = 15;
+
+export async function verifyLogin(emailRaw: string, password: string, now = new Date()): Promise<PublicUser> {
+  const email = String(emailRaw ?? "").trim().toLowerCase().slice(0, 320);
+  const since = new Date(now.getTime() - LOGIN_LOCK_MINUTES * 60_000);
+  // Slow down guessing: after 10 wrong passwords for an email, refuse for 15 minutes.
+  const failures = await prisma.loginFailure.count({ where: { email, createdAt: { gt: since } } });
   const user = await prisma.user.findUnique({ where: { email } });
   // Always run a hash comparison so timing doesn't reveal whether the email exists.
   const ok = await bcrypt.compare(String(password ?? ""), user?.passwordHash ?? (await dummyHash()));
-  if (!user || !ok) throw invalid("Email or password is incorrect");
+  if (failures >= LOGIN_MAX_FAILURES) throw invalid(`Too many tries. Wait ${LOGIN_LOCK_MINUTES} minutes, or reset your password.`);
+  if (!user || !ok) {
+    await prisma.loginFailure.create({ data: { email, createdAt: now } });
+    throw invalid("Email or password is incorrect");
+  }
+  await prisma.loginFailure.deleteMany({ where: { email } });
   const { passwordHash: _ph, createdAt: _c, ...rest } = user;
   return rest;
 }

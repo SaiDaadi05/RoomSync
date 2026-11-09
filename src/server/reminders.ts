@@ -54,9 +54,9 @@ export async function generateReminders(now = new Date()) {
   return created;
 }
 
-type Mailer = { sendMail: (m: { from: string; to: string; subject: string; text: string }) => Promise<unknown> };
+export type Mailer = { sendMail: (m: { from: string; to: string; subject: string; text: string }) => Promise<unknown> };
 
-function defaultMailer(): Mailer | null {
+export function defaultMailer(): Mailer | null {
   if (!emailConfigured()) return null;
   return nodemailer.createTransport({
     host: process.env.SMTP_HOST,

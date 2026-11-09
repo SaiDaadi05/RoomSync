@@ -29,7 +29,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             </Link>
             <Link href="/notifications" className="relative rounded-full p-2 text-ink hover:bg-slate-100" aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`}>
               <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden><path d="M6 16V11a6 6 0 1 1 12 0v5l2 2H4zM10 20a2 2 0 0 0 4 0" strokeLinecap="round" strokeLinejoin="round" /></svg>
-              {unread > 0 && <span className="absolute right-1 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-peach-400 px-1 text-[10px] font-bold text-white">{unread > 9 ? "9+" : unread}</span>}
+              {unread > 0 && <span className="absolute right-1 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-peach-500 px-1 text-[10px] font-bold text-white">{unread > 9 ? "9+" : unread}</span>}
             </Link>
             <Link href="/household" aria-label="Household and settings" className="rounded-full p-0.5">
               <Avatar id={user.id} name={user.name} />

@@ -203,10 +203,10 @@ export default async function PlannerPage({ searchParams }: { searchParams: Prom
                 {items.length === 0 ? <p className="text-xs text-muted">Nothing due.</p> : (
                   <ul className="space-y-1.5">
                     {items.map((o) => (
-                      <li key={o.id} className={`card p-3 ${o.status !== "PENDING" ? "opacity-60" : ""}`}>
+                      <li key={o.id} className="card p-3">
                         <div className="flex items-center gap-2">
                           <span aria-hidden>{CATEGORY_EMOJI[o.definition.category] ?? "📌"}</span>
-                          <Link href={`/tasks/${o.definitionId}`} className="min-w-0 flex-1 truncate text-sm font-medium">{o.definition.title}</Link>
+                          <Link href={`/tasks/${o.definitionId}`} className={`min-w-0 flex-1 truncate text-sm font-medium ${o.status !== "PENDING" ? "text-muted line-through" : ""}`}>{o.definition.title}</Link>
                           {o.status === "DONE" && <Badge tone="green">Done</Badge>}
                           {o.status === "SKIPPED" && <Badge>Skipped</Badge>}
                           {o.assigneeId ? <Avatar id={o.assigneeId} name={nameOf(o.assigneeId)} size="sm" /> : <Badge tone="amber">Unassigned</Badge>}

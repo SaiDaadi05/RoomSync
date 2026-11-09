@@ -112,7 +112,7 @@ function PhonePreview() {
                 <p className="truncate text-[13px] font-semibold">{t}</p>
                 <p className={`text-[11px] ${kind === "late" ? "text-peach-700" : "text-muted"}`}>{sub}</p>
               </div>
-              {kind === "grab" ? <span className="rounded-md bg-peach-400 px-2 py-1 text-[10px] font-semibold text-white">I'll do it</span> : <span className="rounded-md border border-ink px-2 py-1 text-[10px] font-semibold">Done</span>}
+              {kind === "grab" ? <span className="rounded-md bg-peach-500 px-2 py-1 text-[10px] font-semibold text-white">I'll do it</span> : <span className="rounded-md border border-ink px-2 py-1 text-[10px] font-semibold">Done</span>}
             </div>
           ))}
         </div>

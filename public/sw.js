@@ -2,7 +2,7 @@
 // Privacy rule: household pages and API responses are NEVER cached, because phones get
 // shared and a cached page could show someone else's chores or balances. Only the
 // offline page, icons, and Next's content-hashed static assets are cached.
-const VERSION = "v1";
+const VERSION = "v2";
 const SHELL = `roomsync-shell-${VERSION}`;
 const STATIC = `roomsync-static-${VERSION}`;
 const SHELL_FILES = ["/offline.html", "/icons/icon-192.png", "/icon.svg"];
@@ -41,4 +41,30 @@ self.addEventListener("fetch", (event) => {
     );
   }
   // Everything else (API, receipts, RSC payloads) goes straight to the network.
+});
+
+// ---- Push notifications (reminders, nudges, swaps) ----
+self.addEventListener("push", (event) => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch { data = { title: "RoomSync", body: event.data ? event.data.text() : "" }; }
+  event.waitUntil(self.registration.showNotification(data.title || "RoomSync", {
+    body: data.body || "",
+    icon: "/icons/icon-192.png",
+    badge: "/icons/icon-192.png",
+    tag: data.tag,
+    data: { link: data.link || "/notifications" },
+  }));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const link = new URL(event.notification.data?.link || "/notifications", self.location.origin);
+  if (link.origin !== self.location.origin) return;
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((wins) => {
+      const open = wins.find((w) => new URL(w.url).origin === link.origin);
+      if (open) return open.navigate(link.href).then((w) => (w || open).focus());
+      return self.clients.openWindow(link.href);
+    }),
+  );
 });

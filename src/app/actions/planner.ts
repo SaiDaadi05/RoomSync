@@ -6,6 +6,7 @@ import { requireHousehold, requireUser } from "@/server/session";
 import { toActionError, type ActionState } from "@/server/action";
 import { acceptSchedule, addAvailability, cancelSwap, deleteAvailability, requestSwap, respondToSwap, syncOccurrenceToGoogle, unscheduleOccurrence } from "@/server/planner";
 import { revokeGoogle } from "@/server/calendar/google";
+import { deleteFeed, resetFeed } from "@/server/calendar/feed";
 import { cancelHandoff, createHandoff, respondHandoff } from "@/server/handoffs";
 import { hhmmToMinutes, localToUtc } from "@/lib/time";
 import { prisma } from "@/server/db";
@@ -157,4 +158,18 @@ export async function cancelHandoffAction(fd: FormData) {
   await cancelHandoff(user.id, String(fd.get("id") ?? ""));
   refresh();
   redirect("/planner?handoff=cancelled#handoffs");
+}
+
+export async function resetCalendarFeedAction() {
+  const { user, household } = await requireHousehold();
+  await resetFeed(user.id, household.id);
+  revalidatePath("/household");
+  redirect("/household?feed=ready#calendars");
+}
+
+export async function deleteCalendarFeedAction() {
+  const { user, household } = await requireHousehold();
+  await deleteFeed(user.id, household.id);
+  revalidatePath("/household");
+  redirect("/household?feed=off#calendars");
 }

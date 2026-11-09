@@ -36,5 +36,5 @@ export async function activeMembers(householdId: string) {
     include: { user: { select: { id: true, name: true, email: true, timezone: true, preferredStartMin: true, preferredEndMin: true } } },
     orderBy: { joinedAt: "asc" },
   });
-  return rows.map((r) => ({ ...r.user, role: r.role, joinedAt: r.joinedAt }));
+  return rows.map((r) => ({ ...r.user, role: r.role, joinedAt: r.joinedAt, awayFrom: r.awayFrom, awayUntil: r.awayUntil }));
 }

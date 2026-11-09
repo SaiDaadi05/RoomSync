@@ -32,7 +32,7 @@ export default async function NotificationsPage() {
                 <div className="flex-1">
                   <p className="text-sm font-medium">{n.title}</p>
                   {n.body && <p className="text-xs text-muted">{n.body}</p>}
-                  <p className="mt-0.5 text-[11px] text-slate-400">{formatDue(n.createdAt, household.timezone)}</p>
+                  <p className="mt-0.5 text-[11px] text-muted">{formatDue(n.createdAt, household.timezone)}</p>
                 </div>
               </Link>
             </li>

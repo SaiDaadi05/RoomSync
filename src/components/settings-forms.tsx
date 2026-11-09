@@ -2,8 +2,8 @@
 
 import { ActionForm, SubmitButton } from "./forms";
 import { TimezoneSelect } from "./timezone-input";
-import { updatePreferencesAction } from "@/app/actions/auth";
-import { createInviteAction, leaveHouseholdAction, recordMoveOutAction, updateHouseRulesAction, updateHouseholdAction } from "@/app/actions/households";
+import { changePasswordAction, updatePreferencesAction } from "@/app/actions/auth";
+import { createInviteAction, leaveHouseholdAction, recordMoveOutAction, setAwayAction, clearAwayAction, updateHouseRulesAction, updateHouseholdAction } from "@/app/actions/households";
 import { formatCents } from "@/lib/money";
 import { updatePayHandlesAction } from "@/app/actions/money";
 
@@ -22,12 +22,12 @@ export function PreferencesForm({ user, timezones, emailAvailable }: {
         <label className="label" htmlFor="timezone">Your timezone</label>
         <TimezoneSelect name="timezone" defaultValue={user.timezone} options={timezones} />
       </div>
-      <fieldset>
+      <fieldset className="min-w-0">
         <legend className="label">Preferred hours for chores</legend>
         <div className="flex items-center gap-2">
-          <input aria-label="From" type="time" name="preferredStart" defaultValue={user.preferredStart} className="input" />
+          <input aria-label="From" type="time" name="preferredStart" defaultValue={user.preferredStart} className="input min-w-0 flex-1" />
           <span className="text-muted">to</span>
-          <input aria-label="To" type="time" name="preferredEnd" defaultValue={user.preferredEnd} className="input" />
+          <input aria-label="To" type="time" name="preferredEnd" defaultValue={user.preferredEnd} className="input min-w-0 flex-1" />
         </div>
         <p className="mt-1 text-xs text-muted">The planner only suggests times inside this window.</p>
       </fieldset>
@@ -101,7 +101,7 @@ export function MoveOutSettleForm({ memberId, label = "We've paid: record these"
 export function LeaveForm({ openTasks = 0, plan, viewerId }: { openTasks?: number; plan?: MoveOutPlanView; viewerId?: string }) {
   const owes = plan && plan.cents !== 0;
   return (
-    <details className="card p-4">
+    <details id="leave" className="card p-4">
       <summary className="cursor-pointer list-none text-center text-sm font-semibold text-red-700">Leave this household…</summary>
       {owes && plan && viewerId && (
         <div id="move-out" className="mt-3 space-y-3 rounded-lg bg-amber-50 p-3">
@@ -159,16 +159,71 @@ export function HouseRulesForm({ rules, quietStart, quietEnd }: { rules: string;
         <textarea id="rules-text" name="rules" rows={5} maxLength={2000} defaultValue={rules} className="input"
           placeholder={"e.g.\nDishes done the same night\nGuests staying over: give a day's notice\nLabel your food in the fridge"} />
       </div>
-      <fieldset>
+      <fieldset className="min-w-0">
         <legend className="label">Quiet hours</legend>
         <div className="flex items-center gap-2">
-          <input aria-label="Quiet hours start" type="time" name="quietStart" defaultValue={quietStart} className="input" />
+          <input aria-label="Quiet hours start" type="time" name="quietStart" defaultValue={quietStart} className="input min-w-0 flex-1" />
           <span className="text-muted">to</span>
-          <input aria-label="Quiet hours end" type="time" name="quietEnd" defaultValue={quietEnd} className="input" />
+          <input aria-label="Quiet hours end" type="time" name="quietEnd" defaultValue={quietEnd} className="input min-w-0 flex-1" />
         </div>
         <p className="mt-1 text-xs text-muted">The planner never suggests chores during quiet hours. Clear both times to turn this off.</p>
       </fieldset>
       <SubmitButton className="btn-secondary">Save house rules</SubmitButton>
+    </ActionForm>
+  );
+}
+
+export function AwayForm({ today, away }: { today: string; away: { from: string; until: string; now: boolean } | null }) {
+  if (away) {
+    return (
+      <div className="space-y-3 text-sm">
+        <p>
+          {away.now ? "You're away until " : "You'll be away from "}
+          {!away.now && <b>{fmtDay(away.from)}</b>}{!away.now && " to "}<b>{fmtDay(away.until)}</b>.
+          {" "}New chores in that time won&apos;t be given to you, the planner leaves you out, and nobody can nudge you.
+        </p>
+        <form action={clearAwayAction}><button className="btn-secondary min-h-9 text-sm">I&apos;m back, turn off away</button></form>
+      </div>
+    );
+  }
+  return (
+    <ActionForm action={setAwayAction} className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <div><label className="label" htmlFor="away-from">From</label><input id="away-from" name="from" type="date" required min={today} defaultValue={today} className="input" /></div>
+        <div><label className="label" htmlFor="away-until">Until</label><input id="away-until" name="until" type="date" required min={today} className="input" /></div>
+      </div>
+      <label className="flex items-start gap-2 text-sm">
+        <input type="checkbox" name="release" defaultChecked className="mt-1" />
+        <span>Put my chores in those days up for grabs, and tell my roommates</span>
+      </label>
+      <SubmitButton className="btn-secondary">Set me as away</SubmitButton>
+    </ActionForm>
+  );
+}
+
+function fmtDay(d: string) {
+  return new Date(`${d}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
+}
+
+export function ChangePasswordForm({ email }: { email: string }) {
+  return (
+    <ActionForm action={changePasswordAction} className="space-y-3" resetOnSuccess>
+      {/* Lets password managers save the new password against the right account. */}
+      <input type="email" name="username" autoComplete="username" defaultValue={email} hidden readOnly />
+      <div>
+        <label className="label" htmlFor="pw-current">Current password</label>
+        <input id="pw-current" name="current" type="password" autoComplete="current-password" required className="input" />
+      </div>
+      <div>
+        <label className="label" htmlFor="pw-next">New password</label>
+        <input id="pw-next" name="next" type="password" autoComplete="new-password" minLength={8} required className="input" />
+      </div>
+      <div>
+        <label className="label" htmlFor="pw-confirm">Type it again</label>
+        <input id="pw-confirm" name="confirm" type="password" autoComplete="new-password" minLength={8} required className="input" />
+      </div>
+      <p className="text-xs text-muted">Changing it signs you out on every other device.</p>
+      <SubmitButton className="btn-secondary">Change password</SubmitButton>
     </ActionForm>
   );
 }
