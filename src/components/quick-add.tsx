@@ -22,6 +22,10 @@ export function QuickAddTask({ today, tz, currentUserId, members }: Props) {
   useEffect(() => {
     if (state?.ok) { setText(""); input.current?.focus(); }
   }, [state]);
+  // Anything typed before the page finished loading is in the box but not in state yet.
+  useEffect(() => {
+    if (input.current?.value) setText(input.current.value);
+  }, []);
 
   const summary = preview?.kind === "task" && !preview.assigneeId && mine ? preview.summary.replace(/for anyone$/, "for you") : preview?.summary;
   const placeholder = useMemo(() => `Quick add, e.g. ${EXAMPLES[new Date(today).getUTCDate() % EXAMPLES.length]}`, [today]);
