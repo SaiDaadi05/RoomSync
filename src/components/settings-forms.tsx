@@ -22,12 +22,12 @@ export function PreferencesForm({ user, timezones, emailAvailable }: {
         <label className="label" htmlFor="timezone">Your timezone</label>
         <TimezoneSelect name="timezone" defaultValue={user.timezone} options={timezones} />
       </div>
-      <fieldset>
+      <fieldset className="min-w-0">
         <legend className="label">Preferred hours for chores</legend>
         <div className="flex items-center gap-2">
-          <input aria-label="From" type="time" name="preferredStart" defaultValue={user.preferredStart} className="input" />
+          <input aria-label="From" type="time" name="preferredStart" defaultValue={user.preferredStart} className="input min-w-0 flex-1" />
           <span className="text-muted">to</span>
-          <input aria-label="To" type="time" name="preferredEnd" defaultValue={user.preferredEnd} className="input" />
+          <input aria-label="To" type="time" name="preferredEnd" defaultValue={user.preferredEnd} className="input min-w-0 flex-1" />
         </div>
         <p className="mt-1 text-xs text-muted">The planner only suggests times inside this window.</p>
       </fieldset>
@@ -159,12 +159,12 @@ export function HouseRulesForm({ rules, quietStart, quietEnd }: { rules: string;
         <textarea id="rules-text" name="rules" rows={5} maxLength={2000} defaultValue={rules} className="input"
           placeholder={"e.g.\nDishes done the same night\nGuests staying over: give a day's notice\nLabel your food in the fridge"} />
       </div>
-      <fieldset>
+      <fieldset className="min-w-0">
         <legend className="label">Quiet hours</legend>
         <div className="flex items-center gap-2">
-          <input aria-label="Quiet hours start" type="time" name="quietStart" defaultValue={quietStart} className="input" />
+          <input aria-label="Quiet hours start" type="time" name="quietStart" defaultValue={quietStart} className="input min-w-0 flex-1" />
           <span className="text-muted">to</span>
-          <input aria-label="Quiet hours end" type="time" name="quietEnd" defaultValue={quietEnd} className="input" />
+          <input aria-label="Quiet hours end" type="time" name="quietEnd" defaultValue={quietEnd} className="input min-w-0 flex-1" />
         </div>
         <p className="mt-1 text-xs text-muted">The planner never suggests chores during quiet hours. Clear both times to turn this off.</p>
       </fieldset>

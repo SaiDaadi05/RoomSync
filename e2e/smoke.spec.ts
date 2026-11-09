@@ -11,6 +11,15 @@ async function login(page: Page, email = "alex@example.com") {
   await page.waitForURL(/\/home/);
 }
 
+/**
+ * Wider than the screen? Compare with the viewport, not window.innerWidth: with phone
+ * emulation the layout viewport grows to fit wide content, so innerWidth hides the overflow.
+ */
+async function overflows(page: Page) {
+  const width = page.viewportSize()!.width;
+  return page.evaluate((w) => document.documentElement.scrollWidth > w + 1, width);
+}
+
 function watchErrors(page: Page) {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
@@ -24,14 +33,23 @@ test("every main page loads at phone width with no errors, overflow, or serious 
   for (const path of PAGES) {
     const res = await page.goto(path);
     expect(res?.status(), path).toBe(200);
-    const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
-    expect(overflow, `${path} scrolls sideways`).toBe(false);
+    expect(await overflows(page), `${path} scrolls sideways`).toBe(false);
     // @axe-core/playwright types its Page against an older playwright-core; the runtime API is the same.
     const axe = await new AxeBuilder({ page: page as unknown as ConstructorParameters<typeof AxeBuilder>[0]["page"] }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
     const bad = axe.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
     expect(bad.map((v) => `${v.id}: ${v.nodes[0]?.target.join(" ")} :: ${v.nodes[0]?.failureSummary?.split("\n")[1] ?? ""}`), path).toEqual([]);
   }
   expect(errors).toEqual([]);
+});
+
+test("every main page fits a small phone (320 px wide)", async ({ browser, baseURL }) => {
+  const page = await browser.newPage({ baseURL, viewport: { width: 320, height: 640 } });
+  await login(page);
+  for (const path of PAGES) {
+    await page.goto(path);
+    expect(await overflows(page), `${path} scrolls sideways at 320 px`).toBe(false);
+  }
+  await page.close();
 });
 
 test("signed-out pages: login, sign up, forgot and reset password", async ({ page }) => {
