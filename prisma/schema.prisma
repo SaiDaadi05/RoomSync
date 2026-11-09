@@ -39,6 +39,7 @@ model User {
   memberships         Membership[]
   availability        AvailabilityWindow[]
   calendarConnections CalendarConnection[]
+  calendarFeeds       CalendarFeed[]
   notifications       Notification[]
 }
 
@@ -60,16 +61,16 @@ enum Role {
 }
 
 model Household {
-  id        String   @id @default(cuid())
-  name      String
-  timezone  String   @default("America/New_York")
-  currency  String   @default("USD")
-  isDemo    Boolean  @default(false)
-  createdAt DateTime @default(now())
+  id            String   @id @default(cuid())
+  name          String
+  timezone      String   @default("America/New_York")
+  currency      String   @default("USD")
+  isDemo        Boolean  @default(false)
+  createdAt     DateTime @default(now())
   // House rules (free text) and quiet hours (minutes after local midnight; may wrap past midnight).
-  rules          String?
-  quietStartMin  Int?
-  quietEndMin    Int?
+  rules         String?
+  quietStartMin Int?
+  quietEndMin   Int?
 
   memberships      Membership[]
   invitations      Invitation[]
@@ -83,6 +84,7 @@ model Household {
   handoffs         HandoffRequest[]
   assistantActions AssistantAction[]
   recurringBills   RecurringBill[]
+  calendarFeeds    CalendarFeed[]
 }
 
 model Membership {
@@ -295,6 +297,23 @@ enum ConnectionStatus {
   ACTIVE
   ERROR
   REVOKED
+}
+
+// A private "subscribe" link for Apple, Google or any calendar app that reads iCalendar
+// (.ics) URLs. Read-only: it lists the subscriber's own chores in one household.
+// The token is looked up by hash and kept encrypted so the owner can copy the link again.
+model CalendarFeed {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  householdId   String
+  household     Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  tokenHash     String    @unique
+  tokenEnc      String
+  createdAt     DateTime  @default(now())
+  lastFetchedAt DateTime?
+
+  @@unique([userId, householdId])
 }
 
 model CalendarConnection {

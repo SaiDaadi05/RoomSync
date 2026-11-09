@@ -53,7 +53,8 @@ See `.env.example`. Required: `DATABASE_URL`, `APP_URL`, `ENCRYPTION_KEY`. Optio
 | Integration | Status |
 |---|---|
 | Google Calendar | **Implemented, not yet tested against live Google.** OAuth (offline, tokens AES-256-GCM encrypted at rest), free/busy reads (busy blocks only, never event details), and per-task event creation with deterministic event ids to prevent duplicates. Unit-tested with mocked HTTP. Needs credentials, see below. |
-| Apple Calendar | **Not implemented.** Apple has no public OAuth/REST calendar API for web apps. Options: (a) CalDAV against iCloud with an app-specific password the user generates, or (b) a native iOS companion using EventKit. Needs a product decision before building. Manual availability works meanwhile. |
+| Calendar subscribe link (Apple, Google, Outlook) | **Implemented, one way.** Household → Calendars → "Create my calendar link" gives a private `.ics` URL (`/api/calendar/feed/<token>.ics`) listing your own chores, 14 days back to 60 days ahead. Tested with an iCalendar parser; not yet tried in the real Apple/Google apps. The token is stored hashed (plus an encrypted copy so you can copy it again), can be reset or turned off, and stops working if you leave the household. Calendar apps refresh on their own schedule. |
+| Apple Calendar busy times | **Not implemented.** Reading iCloud busy times for planning needs CalDAV with an app-specific password, or a native iOS app (EventKit). Manual availability works meanwhile. |
 | Email reminders | Implemented through SMTP (nodemailer). Inactive until `SMTP_HOST` is set. |
 | Amazon / retailers | Saved product links open the retailer's site for checkout. No ordering, catalog, or Fresh integration, and nothing pretends a purchase happened. |
 | Task swaps | Request → accept/decline. Nothing changes hands until the other roommate accepts; a request expires if either task changes first. |

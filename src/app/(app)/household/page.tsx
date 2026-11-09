@@ -15,19 +15,22 @@ import { revokeInviteAction } from "@/app/actions/households";
 import { logoutAction } from "@/app/actions/auth";
 import { googleConfigured } from "@/server/calendar/google";
 import { disconnectCalendarAction } from "@/app/actions/planner";
+import { CalendarFeedRow } from "@/components/calendar-feed";
+import { getFeed } from "@/server/calendar/feed";
 
 export const metadata = { title: "Household & settings" };
 
-export default async function HouseholdPage({ searchParams }: { searchParams: Promise<{ calendar?: string; member?: string; released?: string }> }) {
+export default async function HouseholdPage({ searchParams }: { searchParams: Promise<{ calendar?: string; feed?: string; member?: string; released?: string }> }) {
   const { user, household } = await requireHousehold();
   const sp = await searchParams;
-  const [{ members, role }, invites, connections, openCounts, myPlan, handleMap] = await Promise.all([
+  const [{ members, role }, invites, connections, openCounts, myPlan, handleMap, feed] = await Promise.all([
     getHouseholdOverview(user.id, household.id),
     listInvitations(user.id, household.id),
     prisma.calendarConnection.findMany({ where: { userId: user.id }, select: { id: true, provider: true, status: true, accountEmail: true, lastSyncAt: true, lastError: true } }),
     openTaskCounts(user.id, household.id),
     moveOutPlan(user.id, household.id, user.id),
     getPayHandles([user.id]),
+    getFeed(user.id, household.id),
   ]);
   const released = Number(sp.released ?? 0);
   const myHandles = handleMap.get(user.id) ?? { venmoHandle: null, paypalHandle: null, cashtag: null };
@@ -111,7 +114,7 @@ export default async function HouseholdPage({ searchParams }: { searchParams: Pr
       </Section>
 
       <Section title="Calendars">
-        <div className="card divide-y divide-slate-100">
+        <div id="calendars" className="card divide-y divide-slate-100">
           {sp.calendar && (
             <p role="status" className={`px-4 py-2 text-sm ${sp.calendar === "connected" ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800"}`}>
               {sp.calendar === "connected" ? "Google Calendar connected." : `Google Calendar connection failed (${sp.calendar}).`}
@@ -134,14 +137,8 @@ export default async function HouseholdPage({ searchParams }: { searchParams: Pr
               <a href="/api/calendar/google/connect" className="btn-primary min-h-9 text-xs">{google ? "Reconnect" : "Connect"}</a>
             ))}
           </div>
-          <div className="flex items-center gap-3 p-4">
-            <span className="text-2xl" aria-hidden>🍎</span>
-            <div className="flex-1">
-              <p className="font-medium">Apple Calendar</p>
-              <p className="text-xs text-muted">Planned. Not available yet. Until then, enter your free times manually in the planner.</p>
-            </div>
-            <Badge>Coming later</Badge>
-          </div>
+          {sp.feed && <p role="status" className="bg-emerald-50 px-4 py-2 text-sm text-emerald-800">{sp.feed === "ready" ? "Your calendar link is ready. Add it to your calendar app below." : "Calendar link turned off. Old copies no longer work."}</p>}
+          <CalendarFeedRow feed={feed} />
           <div className="p-4 text-sm">
             <Link href="/planner/availability" className="font-semibold text-brand-700">Set your weekly availability manually →</Link>
           </div>
