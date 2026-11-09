@@ -91,7 +91,8 @@ export function parseQuickAdd(input: string, ctx: Ctx): QuickAddResult | null {
     if (n === "me" || n === "myself") return ctx.currentUserId;
     return ctx.members.find((m) => m.name.toLowerCase() === n || m.name.toLowerCase().split(" ")[0] === n)?.id ?? null;
   };
-  take(/(?:^|\s)@([a-z][\w'-]*)/i, (m) => { const id = findMember(m[1]!); if (!id) return false; assigneeId = id; });
+  let unknownName: string | null = null;
+  take(/(?:^|\s)@([a-z][\w'-]*)/i, (m) => { const id = findMember(m[1]!); if (!id) { unknownName = m[1]!; return; } assigneeId = id; });
   if (!assigneeId) take(/\s(?:for|-|–)\s([a-z][\w'-]*)$/i, (m) => { const id = findMember(m[1]!); if (!id) return false; assigneeId = id; });
 
   // Recurrence
@@ -144,7 +145,7 @@ export function parseQuickAdd(input: string, ctx: Ctx): QuickAddResult | null {
     DateTime.fromISO(startsOn).toFormat("ccc LLL d");
   return {
     kind: "task", title, category: guessCategory(title), recurrence, interval, weekdays, startsOn, dueTime, assigneeId,
-    summary: `Chore “${title}”, ${when} at ${fmtTime(dueTime)}, for ${who}`,
+    summary: `Chore “${title}”, ${when} at ${fmtTime(dueTime)}, for ${who}${unknownName ? ` (no roommate called “${unknownName}”)` : ""}`,
   };
 }
 

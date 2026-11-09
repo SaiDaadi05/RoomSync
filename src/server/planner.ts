@@ -72,6 +72,7 @@ type BusyNote = { userId: string; name: string; source: "google" | "manual" | "p
 /** Build PersonInputs: manual availability, preferred hours, calendar busy blocks, already-planned tasks. */
 async function loadPeople(householdId: string, from: Date, to: Date) {
   const members = await activeMembers(householdId);
+  const householdTz = (await prisma.household.findUniqueOrThrow({ where: { id: householdId }, select: { timezone: true } })).timezone;
   const ids = members.map((m) => m.id);
   const recentFrom = new Date(Date.now() - RECENT_DAYS * 86400_000);
   const [windows, scheduled, recent, connections] = await Promise.all([
@@ -85,6 +86,10 @@ async function loadPeople(householdId: string, from: Date, to: Date) {
   const people: PersonInput[] = [];
   for (const m of members) {
     const busy: Interval[] = scheduled.filter((o) => o.assigneeId === m.id).map((o) => ({ start: o.scheduledStart!.getTime(), end: o.scheduledEnd!.getTime() }));
+    if (m.awayFrom && m.awayUntil) {
+      // Away: no free time at all for those household-local days.
+      busy.push({ start: DateTime.fromISO(m.awayFrom, { zone: householdTz }).startOf("day").toMillis(), end: DateTime.fromISO(m.awayUntil, { zone: householdTz }).endOf("day").toMillis() });
+    }
     const conn = connections.find((c) => c.userId === m.id);
     const myWindows = windows.filter((w) => w.userId === m.id);
     if (conn) {

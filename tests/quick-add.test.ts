@@ -61,3 +61,11 @@ describe("parseQuickAdd", () => {
     expect(p("   ")).toBeNull();
   });
 });
+
+describe("parseQuickAdd unknown names", () => {
+  it("drops an @mention that matches nobody and says so", () => {
+    const r = p("dishes every day @ben");
+    expect(r).toMatchObject({ kind: "task", title: "Dishes", assigneeId: null, recurrence: "DAILY" });
+    expect(r!.summary).toMatch(/no roommate called “ben”/);
+  });
+});

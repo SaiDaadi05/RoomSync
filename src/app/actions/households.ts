@@ -10,6 +10,7 @@ import {
 import { createTask } from "@/server/tasks";
 import { removeMember, setMemberRole } from "@/server/members";
 import { recordMoveOut } from "@/server/moveout";
+import { clearAway, setAway } from "@/server/away";
 import { requireHousehold, requireUser, setCurrentHousehold } from "@/server/session";
 import { toActionError, type ActionState } from "@/server/action";
 import { STARTER_CHORES } from "@/lib/starter-chores";
@@ -157,4 +158,22 @@ export async function updateHouseRulesAction(_: ActionState, fd: FormData): Prom
   } catch (e) {
     return toActionError(e);
   }
+}
+
+export async function setAwayAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const { user, household } = await requireHousehold();
+    const r = await setAway(user.id, household.id, { from: fd.get("from"), until: fd.get("until"), release: fd.get("release") === "on" });
+    revalidatePath("/", "layout");
+    return { ok: true, message: r.released ? `You're set as away. ${r.released} chore${r.released === 1 ? " is" : "s are"} now up for grabs and your roommates were told.` : "You're set as away. Your roommates were told." };
+  } catch (e) {
+    return toActionError(e);
+  }
+}
+
+export async function clearAwayAction() {
+  const { user, household } = await requireHousehold();
+  await clearAway(user.id, household.id);
+  revalidatePath("/", "layout");
+  redirect("/household#away");
 }

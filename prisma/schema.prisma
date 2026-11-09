@@ -96,6 +96,10 @@ model Membership {
   role        Role      @default(MEMBER)
   joinedAt    DateTime  @default(now())
   leftAt      DateTime?
+  // Away mode: household-local dates (YYYY-MM-DD), inclusive. New chore slots in this window
+  // aren't assigned to them, and the planner treats them as unavailable.
+  awayFrom    String?
+  awayUntil   String?
 
   @@unique([householdId, userId])
   @@index([userId])

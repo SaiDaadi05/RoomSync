@@ -3,13 +3,14 @@ import { requireHousehold } from "@/server/session";
 import { getHouseholdOverview, listInvitations } from "@/server/households";
 import { emailConfigured } from "@/server/notifications";
 import { prisma } from "@/server/db";
-import { COMMON_TIMEZONES, minutesToHHMM } from "@/lib/time";
+import { COMMON_TIMEZONES, minutesToHHMM, todayIn } from "@/lib/time";
+import { activeAway } from "@/lib/away";
 import { Avatar, Badge, PageHeader, Section } from "@/components/ui";
 import { CopyButton } from "@/components/copy-button";
 import { MemberActions } from "@/components/member-actions";
 import { openTaskCounts } from "@/server/members";
 import { moveOutPlan } from "@/server/moveout";
-import { HouseRulesForm, HouseholdForm, InviteForm, LeaveForm, PayHandlesForm, PreferencesForm } from "@/components/settings-forms";
+import { AwayForm, HouseRulesForm, HouseholdForm, InviteForm, LeaveForm, PayHandlesForm, PreferencesForm } from "@/components/settings-forms";
 import { getPayHandles } from "@/server/payments";
 import { revokeInviteAction } from "@/app/actions/households";
 import { logoutAction } from "@/app/actions/auth";
@@ -56,6 +57,7 @@ export default async function HouseholdPage({ searchParams }: { searchParams: Pr
                   <div className="flex-1">
                     <p className="font-medium">{m.name}{m.id === user.id && " (you)"}</p>
                     <p className="text-xs text-muted">{m.email}</p>
+                    {(() => { const a = activeAway(m, todayIn(household.timezone)); return a && <p className="text-xs font-medium text-amber-800">{a.now ? "Away until" : "Away from"} {new Date(`${a.now ? a.until : a.from}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}</p>; })()}
                   </div>
                   {m.role === "OWNER" && <Badge tone="blue">Owner</Badge>}
                 </div>
@@ -148,6 +150,12 @@ export default async function HouseholdPage({ searchParams }: { searchParams: Pr
       <Section title="Get paid back">
         <div id="pay" className="card p-4">
           <PayHandlesForm handles={myHandles} />
+        </div>
+      </Section>
+
+      <Section title="Away" hint="Going home for the weekend or on a trip? Chores and the planner skip you.">
+        <div id="away" className="card p-4">
+          <AwayForm today={todayIn(household.timezone)} away={activeAway(members.find((m) => m.id === user.id)!, todayIn(household.timezone))} />
         </div>
       </Section>
 

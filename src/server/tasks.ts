@@ -1,4 +1,5 @@
 import { DateTime } from "luxon";
+import { isAwayOn } from "@/lib/away";
 import { z } from "zod";
 import type { Prisma, TaskDefinition } from "@prisma/client";
 import { prisma } from "./db";
@@ -65,6 +66,12 @@ export async function ensureOccurrences(householdId: string, now = new Date()) {
   });
   const tz = household.timezone;
   const horizon = DateTime.fromJSDate(now).setZone(tz).plus({ days: HORIZON_DAYS }).toISODate()!;
+  const away = await prisma.membership.findMany({ where: { householdId, leftAt: null, awayUntil: { not: null } }, select: { userId: true, awayFrom: true, awayUntil: true } });
+  const awayOn = (userId: string | null, at: Date) => {
+    if (!userId) return false;
+    const m = away.find((a) => a.userId === userId);
+    return !!m && isAwayOn(m, DateTime.fromJSDate(at).setZone(tz).toISODate()!);
+  };
   const rows: Prisma.TaskOccurrenceCreateManyInput[] = [];
   for (const def of defs) {
     // A one-time task has exactly one occurrence, ever.
@@ -80,7 +87,8 @@ export async function ensureOccurrences(householdId: string, now = new Date()) {
         sequence: slot.sequence,
         originalDueAt: slot.dueAt,
         dueAt: slot.dueAt,
-        assigneeId: assigneeForSequence(def, slot.sequence),
+        // Someone away that day: the slot starts up for grabs instead.
+        assigneeId: ((id) => (awayOn(id, slot.dueAt) ? null : id))(assigneeForSequence(def, slot.sequence)),
       });
     }
   }
@@ -356,6 +364,7 @@ export async function nudgeOccurrence(userId: string, occurrenceId: string, now 
   ]);
   if (!assignee) throw invalid("That person isn't in the household any more");
   const day = DateTime.fromJSDate(now).setZone(household.timezone).toISODate()!;
+  if (isAwayOn(assignee, day)) throw invalid(`${assignee.user.name.split(" ")[0]} is away until ${DateTime.fromISO(assignee.awayUntil!).toFormat("ccc LLL d")}. Grab it yourself, or it'll wait.`);
   const dedupeKey = `nudge:${occ.id}:${day}`;
   if (await prisma.notification.findUnique({ where: { dedupeKey } })) return { sent: false, assigneeName: assignee.user.name };
   const n = await notify({

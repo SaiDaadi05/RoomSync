@@ -3,7 +3,7 @@
 import { ActionForm, SubmitButton } from "./forms";
 import { TimezoneSelect } from "./timezone-input";
 import { updatePreferencesAction } from "@/app/actions/auth";
-import { createInviteAction, leaveHouseholdAction, recordMoveOutAction, updateHouseRulesAction, updateHouseholdAction } from "@/app/actions/households";
+import { createInviteAction, leaveHouseholdAction, recordMoveOutAction, setAwayAction, clearAwayAction, updateHouseRulesAction, updateHouseholdAction } from "@/app/actions/households";
 import { formatCents } from "@/lib/money";
 import { updatePayHandlesAction } from "@/app/actions/money";
 
@@ -171,4 +171,36 @@ export function HouseRulesForm({ rules, quietStart, quietEnd }: { rules: string;
       <SubmitButton className="btn-secondary">Save house rules</SubmitButton>
     </ActionForm>
   );
+}
+
+export function AwayForm({ today, away }: { today: string; away: { from: string; until: string; now: boolean } | null }) {
+  if (away) {
+    return (
+      <div className="space-y-3 text-sm">
+        <p>
+          {away.now ? "You're away until " : "You'll be away from "}
+          {!away.now && <b>{fmtDay(away.from)}</b>}{!away.now && " to "}<b>{fmtDay(away.until)}</b>.
+          {" "}New chores in that time won&apos;t be given to you, the planner leaves you out, and nobody can nudge you.
+        </p>
+        <form action={clearAwayAction}><button className="btn-secondary min-h-9 text-sm">I&apos;m back, turn off away</button></form>
+      </div>
+    );
+  }
+  return (
+    <ActionForm action={setAwayAction} className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <div><label className="label" htmlFor="away-from">From</label><input id="away-from" name="from" type="date" required min={today} defaultValue={today} className="input" /></div>
+        <div><label className="label" htmlFor="away-until">Until</label><input id="away-until" name="until" type="date" required min={today} className="input" /></div>
+      </div>
+      <label className="flex items-start gap-2 text-sm">
+        <input type="checkbox" name="release" defaultChecked className="mt-1" />
+        <span>Put my chores in those days up for grabs, and tell my roommates</span>
+      </label>
+      <SubmitButton className="btn-secondary">Set me as away</SubmitButton>
+    </ActionForm>
+  );
+}
+
+function fmtDay(d: string) {
+  return new Date(`${d}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
 }
