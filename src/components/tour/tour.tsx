@@ -117,7 +117,9 @@ function TourOverlay({ index, onBack, onNext, onClose }: { index: number; onBack
       if (el) {
         targetRef.current = el;
         const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-        el.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
+        // Put the target near the top of the screen; the card sits below it.
+        const top = el.getBoundingClientRect().top + window.scrollY - 84;
+        if (getComputedStyle(el).position !== "fixed") window.scrollTo({ top: Math.max(0, top), behavior: reduce ? "auto" : "smooth" });
         measure();
         setSearching(false);
       } else if (s.target && tries++ < 15) {
@@ -149,8 +151,9 @@ function TourOverlay({ index, onBack, onNext, onClose }: { index: number; onBack
     return () => document.removeEventListener("keydown", onKey);
   }, [index, onBack, onNext, onClose]);
 
-  // Keep the card out of the way: if the spotlight is in the lower half, put the card at the top.
-  const cardOnTop = !!box && box.top + box.height / 2 > window.innerHeight / 2;
+  // The card normally sits at the bottom. If the target is pinned low on screen (the
+  // bottom bar's Add button) or the page couldn't scroll it up, move the card to the top.
+  const cardOnTop = !!box && box.top > window.innerHeight * 0.55;
 
   return (
     <div className="fixed inset-0 z-50" aria-hidden={false}>

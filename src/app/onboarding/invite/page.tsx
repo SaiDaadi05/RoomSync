@@ -58,7 +58,7 @@ export default async function OnboardingInvite() {
       )}
 
       <div className="flex gap-2 pt-2">
-        <Link href="/onboarding/first-tasks" className="btn-secondary flex-1">{invites.length || others.length ? "Back to it later" : "Skip for now"}</Link>
+        {invites.length === 0 && others.length === 0 && <Link href="/onboarding/first-tasks" className="btn-secondary flex-1">Skip for now</Link>}
         <Link href="/onboarding/first-tasks" className="btn-primary flex-1">Next: chores</Link>
       </div>
     </main>
