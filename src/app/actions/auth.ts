@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { signUp, verifyLogin, updatePreferences } from "@/server/auth";
 import { currentSessionToken, endSession, requireUser, startSession } from "@/server/session";
 import { changePassword, requestPasswordReset, resetPassword } from "@/server/passwords";
+import { deleteAccount } from "@/server/account";
 import { toActionError, type ActionState } from "@/server/action";
 import { hhmmToMinutes } from "@/lib/time";
 import { revalidatePath } from "next/cache";
@@ -90,4 +91,16 @@ export async function resetPasswordAction(_: ActionState, fd: FormData): Promise
     return toActionError(e);
   }
   redirect("/home");
+}
+
+export async function deleteAccountAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const user = await requireUser();
+    if (String(fd.get("confirm") ?? "").trim().toLowerCase() !== "delete") return { error: "Type DELETE to confirm" };
+    await deleteAccount(user.id, String(fd.get("password") ?? ""));
+    await endSession();
+  } catch (e) {
+    return toActionError(e);
+  }
+  redirect("/login?deleted=1");
 }

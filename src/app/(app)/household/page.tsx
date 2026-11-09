@@ -183,6 +183,7 @@ export default async function HouseholdPage({ searchParams }: { searchParams: Pr
         <Link href="/onboarding" className="btn-secondary w-full">Create or join another household</Link>
         <form action={logoutAction}><button className="btn-secondary w-full">Log out</button></form>
         <LeaveForm openTasks={openCounts.get(user.id) ?? 0} viewerId={user.id} plan={{ userId: user.id, cents: myPlan.cents, currency: household.currency, payments: myPlan.payments }} />
+        {!user.isDemo && <p className="pt-2 text-center text-xs"><Link href="/delete-account" className="text-muted underline">Delete my account</Link></p>}
       </div>
     </>
   );

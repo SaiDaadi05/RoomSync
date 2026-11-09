@@ -56,6 +56,9 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
       {households.length > 0 && (
         <p className="mt-6 text-center text-sm"><Link href="/home" className="font-semibold text-brand-700">← Back to {households[0].name}</Link></p>
       )}
+      {households.length === 0 && !user.isDemo && (
+        <p className="mt-8 text-center text-xs"><Link href="/delete-account" className="text-muted underline">Delete my account</Link></p>
+      )}
     </main>
   );
 }

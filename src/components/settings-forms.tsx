@@ -101,7 +101,7 @@ export function MoveOutSettleForm({ memberId, label = "We've paid: record these"
 export function LeaveForm({ openTasks = 0, plan, viewerId }: { openTasks?: number; plan?: MoveOutPlanView; viewerId?: string }) {
   const owes = plan && plan.cents !== 0;
   return (
-    <details className="card p-4">
+    <details id="leave" className="card p-4">
       <summary className="cursor-pointer list-none text-center text-sm font-semibold text-red-700">Leave this household…</summary>
       {owes && plan && viewerId && (
         <div id="move-out" className="mt-3 space-y-3 rounded-lg bg-amber-50 p-3">

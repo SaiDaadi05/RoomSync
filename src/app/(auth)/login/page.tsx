@@ -8,11 +8,12 @@ import { startDemoAction } from "@/app/actions/demo";
 
 export const metadata = { title: "Log in" };
 
-export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; deleted?: string }> }) {
   if (await getCurrentUser()) redirect("/home");
-  const { next } = await searchParams;
+  const { next, deleted } = await searchParams;
   return (
     <div className="card p-6">
+      {deleted && <p role="status" className="mb-4 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-800">Your account has been deleted.</p>}
       <h1 className="mb-1 text-xl font-bold">Welcome back</h1>
       <p className="mb-5 text-sm text-muted">Log in to see what's happening at home.</p>
       <ActionForm action={loginAction} className="space-y-4">
