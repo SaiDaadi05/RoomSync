@@ -43,7 +43,7 @@ export function EmptyState({ icon, title, body, action }: { icon: string; title:
   );
 }
 
-/** App mark: a rose tile with a house-and-check. */
+/** App mark: a clay tile with a house-and-check. */
 export function Logo({ className = "h-9 w-9" }: { className?: string }) {
   return (
     <svg viewBox="0 0 64 64" className={className} aria-hidden>
