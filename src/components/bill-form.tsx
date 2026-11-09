@@ -18,6 +18,7 @@ const ordinal = (n: number) => `${n}${n % 10 === 1 && n !== 11 ? "st" : n % 10 =
 export type BillInitial = {
   id: string; description: string; amount: string; payerId: string; category: string;
   splitMethod: "EQUAL" | "CUSTOM"; participants: { userId: string; amount?: string }[]; dayOfMonth: number; startMonth: string;
+  splitWithEveryone?: boolean;
 };
 
 export function BillForm({ members, currentUserId, thisMonth, initial }: {
@@ -25,9 +26,10 @@ export function BillForm({ members, currentUserId, thisMonth, initial }: {
 }) {
   const [amount, setAmount] = useState(initial?.amount ?? "");
   const [method, setMethod] = useState<"EQUAL" | "CUSTOM">(initial?.splitMethod ?? "EQUAL");
-  const [included, setIncluded] = useState<string[]>(initial ? initial.participants.map((p) => p.userId) : members.map((m) => m.id));
+  const [included, setIncluded] = useState<string[]>(initial && !initial.splitWithEveryone ? initial.participants.map((p) => p.userId) : members.map((m) => m.id));
   const [custom, setCustom] = useState<Record<string, string>>(Object.fromEntries((initial?.participants ?? []).filter((p) => p.amount).map((p) => [p.userId, p.amount!])));
   const [day, setDay] = useState(initial?.dayOfMonth ?? 1);
+  const [everyone, setEveryone] = useState(initial?.splitWithEveryone ?? false);
   const total = toCents(amount);
 
   const preview = useMemo(() => {
@@ -84,6 +86,11 @@ export function BillForm({ members, currentUserId, thisMonth, initial }: {
 
       <fieldset className="space-y-3">
         <legend className="label">Split</legend>
+        <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" name="splitWithEveryone" checked={everyone} onChange={(e) => setEveryone(e.target.checked)} className="mt-0.5 h-5 w-5 accent-brand-600" />
+          <span>Split equally with everyone who lives here<span className="block text-xs text-muted">Roommates who join later are included from their first month. People who move out stop being charged.</span></span>
+        </label>
+        {everyone ? <><input type="hidden" name="splitMethod" value="EQUAL" />{members.map((m) => <input key={m.id} type="hidden" name="participants" value={m.id} />)}</> : <>
         <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1 text-sm">
           {(["EQUAL", "CUSTOM"] as const).map((m) => (
             <label key={m} className={`cursor-pointer rounded-lg py-1.5 text-center font-medium ${method === m ? "bg-white shadow-sm" : "text-slate-600"}`}>
@@ -117,6 +124,7 @@ export function BillForm({ members, currentUserId, thisMonth, initial }: {
             {preview.remaining === 0 ? "✓ Splits match the total" : preview.remaining > 0 ? `${fmt(preview.remaining)} left to assign` : `${fmt(-preview.remaining)} over the total`}
           </p>
         )}
+        </>}
       </fieldset>
       <SubmitButton className="btn-primary w-full">{initial ? "Save changes" : "Add recurring bill"}</SubmitButton>
     </ActionForm>

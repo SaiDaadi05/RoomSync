@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { DateTime } from "luxon";
-import { makeHousehold } from "./helpers";
+import { makeHousehold, makeUser } from "./helpers";
 import { createBill, deleteBill, dueMonths, ensureBillExpenses, setBillPaused, updateBill } from "@/server/bills";
 import { computeBalances, deleteExpense } from "@/server/expenses";
-import { leaveHousehold } from "@/server/households";
+import { acceptInvitation, createInvitation, leaveHousehold } from "@/server/households";
 import { prisma } from "@/server/db";
 
 const TZ = "America/New_York";
@@ -105,5 +105,40 @@ describe("recurring bills", () => {
     const after = await prisma.recurringBill.findUniqueOrThrow({ where: { id: b.id } });
     expect(after.lastError).toMatch(/no longer in the household/);
     expect(await prisma.notification.count({ where: { userId: owner.id, type: "bill_failed" } })).toBe(1);
+  });
+});
+
+describe("bills split with everyone", () => {
+  it("splits each month among whoever lives there then, including people who joined later", async () => {
+    const { household, owner } = await makeHousehold(0);
+    const b = await bill(household.id, owner.id, [owner.id], { amountCents: 90000, splitWithEveryone: true, startMonth: "2031-01" });
+    await prisma.expense.deleteMany({ where: { recurringBillId: b.id } });
+
+    await ensureBillExpenses(household.id, at("2031-01-10T12:00"));
+    const jan = await prisma.expense.findFirstOrThrow({ where: { recurringBillId: b.id, period: "2031-01" }, include: { splits: true } });
+    expect(jan.splits.map((s) => s.userId)).toEqual([owner.id]);
+
+    const mate = await makeUser("Mate");
+    const mate2 = await makeUser("Mate");
+    for (const u of [mate, mate2]) await acceptInvitation(u.id, (await createInvitation(owner.id, household.id)).code);
+
+    await ensureBillExpenses(household.id, at("2031-02-10T12:00"));
+    const feb = await prisma.expense.findFirstOrThrow({ where: { recurringBillId: b.id, period: "2031-02" }, include: { splits: true } });
+    expect(feb.splits.map((s) => s.amountCents)).toEqual([30000, 30000, 30000]);
+    expect(new Set(feb.splits.map((s) => s.userId))).toEqual(new Set([owner.id, mate.id, mate2.id]));
+
+    // Someone moving out doesn't break the bill: they just aren't charged next month.
+    await leaveHousehold(mate2.id, household.id, { acknowledgeBalance: true });
+    await ensureBillExpenses(household.id, at("2031-03-10T12:00"));
+    const mar = await prisma.expense.findFirstOrThrow({ where: { recurringBillId: b.id, period: "2031-03" }, include: { splits: true } });
+    expect(new Set(mar.splits.map((s) => s.userId))).toEqual(new Set([owner.id, mate.id]));
+    expect((await prisma.recurringBill.findUniqueOrThrow({ where: { id: b.id } })).lastError).toBeNull();
+  });
+
+  it("keeps the setting when a bill is edited without it", async () => {
+    const { household, owner } = await makeHousehold(0);
+    const b = await bill(household.id, owner.id, [owner.id], { splitWithEveryone: true });
+    await updateBill(owner.id, b.id, { description: "Rent", amountCents: 1000, payerId: owner.id, splitMethod: "EQUAL", participants: [{ userId: owner.id }], dayOfMonth: 1, startMonth: "2031-01" });
+    expect((await prisma.recurringBill.findUniqueOrThrow({ where: { id: b.id } })).splitWithEveryone).toBe(true);
   });
 });

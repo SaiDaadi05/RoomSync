@@ -40,6 +40,7 @@ export default async function BillPage({ params }: { params: Promise<{ id: strin
             initial={{
               id: bill.id, description: bill.description, amount: cents(bill.amountCents), payerId: bill.payerId, category: bill.category,
               splitMethod: bill.splitMethod === "CUSTOM" ? "CUSTOM" : "EQUAL", dayOfMonth: bill.dayOfMonth, startMonth: bill.startMonth,
+              splitWithEveryone: bill.splitWithEveryone,
               participants: participants.map((p) => ({ userId: p.userId, amount: p.amountCents !== undefined ? cents(p.amountCents) : undefined })),
             }}
           />

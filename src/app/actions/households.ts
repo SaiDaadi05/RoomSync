@@ -15,9 +15,6 @@ import { requireHousehold, requireUser, setCurrentHousehold } from "@/server/ses
 import { toActionError, type ActionState } from "@/server/action";
 import { STARTER_CHORES } from "@/lib/starter-chores";
 
-/** Where first-run setup ends: Home, with the app tour. */
-const ONBOARDING_DONE = "/home?tour=1";
-
 export async function createHouseholdAction(_: ActionState, fd: FormData): Promise<ActionState> {
   let id: string;
   try {
@@ -69,7 +66,7 @@ export async function addStarterChoresAction(fd: FormData) {
       dueTime: c.dueTime,
     });
   }
-  redirect(ONBOARDING_DONE);
+  redirect("/onboarding/bills");
 }
 
 export async function createInviteAction(_: ActionState, fd: FormData): Promise<ActionState> {

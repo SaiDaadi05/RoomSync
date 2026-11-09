@@ -30,6 +30,12 @@ export const TOUR_STEPS: TourStep[] = [
     target: { selector: "[aria-haspopup='menu']" },
   },
   {
+    route: "/home",
+    title: "Or just ask",
+    body: "Type something like \"I paid $42 for groceries, split with everyone\" or \"who's on trash this week?\" The assistant drafts it and nothing is saved until you confirm.",
+    target: { selector: "[aria-label='Ask the assistant']" },
+  },
+  {
     route: "/tasks",
     title: "Chores that repeat on their own",
     body: "Set a chore once (weekly trash, monthly fridge clean-out) and RoomSync makes each due date, keeps the history, and reminds whoever's up. Tap Done when it's done.",
@@ -54,6 +60,12 @@ export const TOUR_STEPS: TourStep[] = [
     target: { heading: "On the list" },
   },
   {
+    route: "/shopping",
+    title: "Running low?",
+    body: "Things you buy often show up here. One tap puts them back on the list.",
+    target: { selector: "[aria-labelledby='staples-title']" },
+  },
+  {
     route: "/expenses",
     title: "Who owes whom, always up to date",
     body: "Add a cost and split it evenly, by shares, by percent, or item by item. Balances update for everyone right away.",
@@ -61,8 +73,14 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     route: "/expenses",
+    title: "Rent and bills, every month",
+    body: "Set up rent, internet or utilities once. Each month they're added and split for you, including roommates who move in later.",
+    target: { heading: "Recurring bills" },
+  },
+  {
+    route: "/expenses",
     title: "Settle up",
-    body: "When someone pays someone back, record it here. RoomSync only keeps the books; the money itself moves however you like.",
+    body: "Pay a roommate back with a Venmo, PayPal or Cash App link, then record it here. RoomSync keeps the books; the money moves in the app you already use.",
     target: { heading: "Record a payment" },
   },
   {
@@ -70,6 +88,18 @@ export const TOUR_STEPS: TourStep[] = [
     title: "Reminders",
     body: "Due chores, swap requests and new costs show up here, and by email too if your household turns it on.",
     target: { selector: "main h1" },
+  },
+  {
+    route: "/recap",
+    title: "Your week in one page",
+    body: "Every Sunday evening: who did what, what the house spent, and what's coming up next week.",
+    target: { selector: "main h1" },
+  },
+  {
+    route: "/household",
+    title: "House rules and quiet hours",
+    body: "Write down what you agreed on, like guests, dishes and the thermostat. Set quiet hours and the planner won't suggest chores during them.",
+    target: { heading: "House rules" },
   },
   {
     route: "/household",

@@ -1,3 +1,6 @@
+/** Where first-run setup ends: Home, with the app tour. */
+export const ONBOARDING_DONE = "/home?tour=1";
+
 /** "Step 2 of 4" header shared by the first-run setup screens. */
 export const ONBOARDING_STEPS = ["Your place", "Roommates", "Chores", "Bills"] as const;
 

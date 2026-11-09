@@ -440,6 +440,7 @@ model RecurringBill {
   category     String      @default("rent")
   splitMethod  SplitMethod @default(EQUAL)
   participants Json // [{ userId, amountCents? }] in the same shape as a one-off expense
+  splitWithEveryone Boolean @default(false) // equal split among whoever lives there that month, including people who join later
   dayOfMonth   Int // 1-28 so it exists in every month
   startMonth   String // YYYY-MM, first month to add
   pausedAt     DateTime?

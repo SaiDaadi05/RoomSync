@@ -26,7 +26,7 @@ export default async function FirstTasks() {
           </label>
         ))}
         <div className="flex gap-2 pt-4">
-          <Link href="/home?tour=1" className="btn-secondary flex-1">Skip for now</Link>
+          <Link href="/onboarding/bills" className="btn-secondary flex-1">Skip for now</Link>
           <SubmitButton className="btn-primary flex-1" pendingText="Adding…">Add selected</SubmitButton>
         </div>
       </form>
