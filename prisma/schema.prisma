@@ -41,6 +41,7 @@ model User {
   calendarConnections CalendarConnection[]
   calendarFeeds       CalendarFeed[]
   pushSubscriptions   PushSubscription[]
+  passwordResets      PasswordReset[]
   notifications       Notification[]
 }
 
@@ -583,4 +584,17 @@ model AssistantAction {
   decidedAt   DateTime?
 
   @@index([userId, status])
+}
+
+/// One-time password reset link. Only a hash of the token is stored; it expires after an hour.
+model PasswordReset {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }

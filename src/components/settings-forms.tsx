@@ -2,7 +2,7 @@
 
 import { ActionForm, SubmitButton } from "./forms";
 import { TimezoneSelect } from "./timezone-input";
-import { updatePreferencesAction } from "@/app/actions/auth";
+import { changePasswordAction, updatePreferencesAction } from "@/app/actions/auth";
 import { createInviteAction, leaveHouseholdAction, recordMoveOutAction, setAwayAction, clearAwayAction, updateHouseRulesAction, updateHouseholdAction } from "@/app/actions/households";
 import { formatCents } from "@/lib/money";
 import { updatePayHandlesAction } from "@/app/actions/money";
@@ -203,4 +203,27 @@ export function AwayForm({ today, away }: { today: string; away: { from: string;
 
 function fmtDay(d: string) {
   return new Date(`${d}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
+}
+
+export function ChangePasswordForm({ email }: { email: string }) {
+  return (
+    <ActionForm action={changePasswordAction} className="space-y-3" resetOnSuccess>
+      {/* Lets password managers save the new password against the right account. */}
+      <input type="email" name="username" autoComplete="username" defaultValue={email} hidden readOnly />
+      <div>
+        <label className="label" htmlFor="pw-current">Current password</label>
+        <input id="pw-current" name="current" type="password" autoComplete="current-password" required className="input" />
+      </div>
+      <div>
+        <label className="label" htmlFor="pw-next">New password</label>
+        <input id="pw-next" name="next" type="password" autoComplete="new-password" minLength={8} required className="input" />
+      </div>
+      <div>
+        <label className="label" htmlFor="pw-confirm">Type it again</label>
+        <input id="pw-confirm" name="confirm" type="password" autoComplete="new-password" minLength={8} required className="input" />
+      </div>
+      <p className="text-xs text-muted">Changing it signs you out on every other device.</p>
+      <SubmitButton className="btn-secondary">Change password</SubmitButton>
+    </ActionForm>
+  );
 }

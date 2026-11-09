@@ -34,6 +34,19 @@ test("every main page loads at phone width with no errors, overflow, or serious 
   expect(errors).toEqual([]);
 });
 
+test("signed-out pages: login, sign up, forgot and reset password", async ({ page }) => {
+  const errors = watchErrors(page);
+  for (const path of ["/login", "/signup", "/forgot-password", "/reset-password?token=nope"]) {
+    expect((await page.goto(path))?.status(), path).toBe(200);
+  }
+  await page.goto("/login");
+  await page.click('a:has-text("Forgot it?")');
+  await expect(page).toHaveURL(/forgot-password/);
+  await page.goto("/reset-password?token=" + "a".repeat(43));
+  await expect(page.getByText("expired or was already used")).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
 test("new roommate: sign up, create a household, quick add, and log a split cost", async ({ page }) => {
   const errors = watchErrors(page);
   const email = `e2e-${Date.now()}@test.dev`;

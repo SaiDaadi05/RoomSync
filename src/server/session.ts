@@ -54,3 +54,8 @@ export const requireHousehold = cache(async () => {
   const household = households.find((h) => h.id === wanted) ?? households[0];
   return { user, household, households };
 });
+
+/** The raw token of this browser's session, so a password change can keep it signed in. */
+export async function currentSessionToken() {
+  return (await cookies()).get(SESSION_COOKIE)?.value;
+}

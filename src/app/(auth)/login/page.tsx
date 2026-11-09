@@ -22,7 +22,10 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           <input id="email" name="email" type="email" autoComplete="email" required className="input" />
         </div>
         <div>
-          <label className="label" htmlFor="password">Password</label>
+          <div className="flex items-baseline justify-between">
+            <label className="label" htmlFor="password">Password</label>
+            <Link href="/forgot-password" className="text-xs font-semibold text-brand-700">Forgot it?</Link>
+          </div>
           <input id="password" name="password" type="password" autoComplete="current-password" required className="input" />
         </div>
         <SubmitButton className="btn-primary w-full" pendingText="Logging in…">Log in</SubmitButton>

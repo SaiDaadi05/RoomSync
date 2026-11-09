@@ -10,7 +10,7 @@ import { CopyButton } from "@/components/copy-button";
 import { MemberActions } from "@/components/member-actions";
 import { openTaskCounts } from "@/server/members";
 import { moveOutPlan } from "@/server/moveout";
-import { AwayForm, HouseRulesForm, HouseholdForm, InviteForm, LeaveForm, PayHandlesForm, PreferencesForm } from "@/components/settings-forms";
+import { AwayForm, ChangePasswordForm, HouseRulesForm, HouseholdForm, InviteForm, LeaveForm, PayHandlesForm, PreferencesForm } from "@/components/settings-forms";
 import { getPayHandles } from "@/server/payments";
 import { revokeInviteAction } from "@/app/actions/households";
 import { logoutAction } from "@/app/actions/auth";
@@ -172,6 +172,12 @@ export default async function HouseholdPage({ searchParams }: { searchParams: Pr
           <div className="mt-4 border-t border-slate-200 pt-4"><PushToggle publicKey={pushConfigured() ? vapidPublicKey() : null} devices={pushDevices} /></div>
         </div>
       </Section>
+
+      {!user.isDemo && (
+        <Section title="Password">
+          <div id="password" className="card p-4"><ChangePasswordForm email={user.email} /></div>
+        </Section>
+      )}
 
       <div className="space-y-3">
         <Link href="/onboarding" className="btn-secondary w-full">Create or join another household</Link>
