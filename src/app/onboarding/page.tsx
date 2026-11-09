@@ -6,6 +6,7 @@ import { requireUser } from "@/server/session";
 import { listMyHouseholds } from "@/server/households";
 import { prisma } from "@/server/db";
 import { COMMON_TIMEZONES } from "@/lib/time";
+import { OnboardingSteps } from "@/components/onboarding-steps";
 
 export const metadata = { title: "Get started" };
 
@@ -22,8 +23,8 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
   });
   return (
     <main className="mx-auto max-w-md px-4 py-10">
-      <p className="text-sm font-semibold text-brand-700">Hi {user.name.split(" ")[0]} 👋</p>
-      <h1 className="mb-1 text-2xl font-bold">Let's set up your place</h1>
+      {households.length === 0 && <OnboardingSteps current={1} />}
+      <h1 className="mb-1 text-2xl font-bold">Let's set up your place, {user.name.split(" ")[0]}</h1>
       {removals.map((n) => (
         <p key={n.id} role="status" className="mb-4 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">{n.title}. {n.body}</p>
       ))}

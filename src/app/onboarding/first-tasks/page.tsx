@@ -4,6 +4,7 @@ import { STARTER_CHORES } from "@/lib/starter-chores";
 import { describeRule } from "@/lib/recurrence";
 import { SubmitButton } from "@/components/forms";
 import Link from "next/link";
+import { OnboardingSteps } from "@/components/onboarding-steps";
 
 export const metadata = { title: "First chores" };
 
@@ -11,7 +12,7 @@ export default async function FirstTasks() {
   const { household } = await requireHousehold();
   return (
     <main className="mx-auto max-w-md px-4 py-10">
-      <p className="text-sm font-semibold text-brand-700">{household.name} is ready 🎉</p>
+      <OnboardingSteps current={3} />
       <h1 className="mb-1 text-2xl font-bold">Add your first chores</h1>
       <p className="mb-6 text-sm text-muted">Pick the usual suspects. You can change schedules and assign roommates once they join.</p>
       <form action={addStarterChoresAction} className="space-y-2">
@@ -25,7 +26,7 @@ export default async function FirstTasks() {
           </label>
         ))}
         <div className="flex gap-2 pt-4">
-          <Link href="/home" className="btn-secondary flex-1">Skip for now</Link>
+          <Link href="/home?tour=1" className="btn-secondary flex-1">Skip for now</Link>
           <SubmitButton className="btn-primary flex-1" pendingText="Adding…">Add selected</SubmitButton>
         </div>
       </form>
