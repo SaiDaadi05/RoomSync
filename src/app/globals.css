@@ -63,3 +63,64 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: -0.015em; }
 @utility btn-danger { @apply btn border border-red-300 bg-white text-red-700 hover:bg-red-50; }
 @utility chip { @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold; }
 
+
+/* ---------------------------------------------------------------
+   "Parchment" look (preview, opt-in with ?look=parchment).
+   Warm ivory canvas, serif headings, a muted clay accent and
+   hairline lines. Only token values change, so every screen follows.
+   --------------------------------------------------------------- */
+html[data-look="parchment"] {
+  --font-sans: var(--font-look-body), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-look-serif), Georgia, serif;
+
+  --color-brand-50: #f3efe6;
+  --color-brand-100: #ece6da;
+  --color-brand-200: #dcd5c6;
+  --color-brand-300: #b9b1a1;
+  --color-brand-500: #57524a;
+  --color-brand-600: #2b2925;
+  --color-brand-700: #2b2925;
+  --color-brand-800: #1d1b18;
+
+  --color-peach-50: #f8efe8;
+  --color-peach-100: #f1e3d9;
+  --color-peach-200: #e5c9b6;
+  --color-peach-300: #d39f80;
+  --color-peach-400: #b0532e;
+  --color-peach-500: #9a4625;
+  --color-peach-700: #7d381d;
+
+  --color-slate-50: #f3f0e8;
+  --color-slate-100: #efebe1;
+  --color-slate-200: #e4dfd3;
+  --color-slate-300: #dcd6c8;
+  --color-slate-400: #bdb6a7;
+  --color-slate-500: #8f897d;
+  --color-slate-600: #7a756b;
+  --color-slate-700: #57524a;
+
+  --color-ink: #2b2925;
+  --color-muted: #7a756b;
+  --color-canvas: #f6f3ec;
+  --color-paper: #fbfaf6;
+  --color-white: #fbfaf6;
+  --color-note: #f4ead9;
+  --color-lilac: #ece9e1;
+  --color-mint: #e8ebe0;
+
+  /* Soften the bright category and avatar tints into warm, earthy ones */
+  --color-rose-100: #f1e3d9;   --color-rose-700: #8a3f22;
+  --color-violet-100: #e7e3ea; --color-violet-700: #5b4d66;
+  --color-sky-100: #e1e7e8;    --color-sky-700: #3f5a60;
+  --color-cyan-100: #e1e8e4;   --color-cyan-700: #3f5f55;
+  --color-emerald-50: #eef0e6; --color-emerald-100: #e3e8d8; --color-emerald-200: #ccd5bc;
+  --color-emerald-700: #4f6340; --color-emerald-800: #3f5133;
+  --color-amber-50: #f7efdf;   --color-amber-100: #f1e4c8;  --color-amber-200: #e6d2a8;
+  --color-amber-700: #8a6420;  --color-amber-800: #725118;  --color-amber-900: #5c4214;
+  --color-red-50: #f7ebe5;     --color-red-300: #dba895;
+  --color-red-700: #a2402a;    --color-red-800: #86331f;
+}
+html[data-look="parchment"] body { background: var(--color-canvas); }
+html[data-look="parchment"] h1,
+html[data-look="parchment"] h2 { font-weight: 400; letter-spacing: -0.01em; }
+html[data-look="parchment"] .text-white { color: #fffdf8; }
