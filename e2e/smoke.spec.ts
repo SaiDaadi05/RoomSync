@@ -55,7 +55,10 @@ test("every main page fits a small phone (320 px wide)", async ({ browser, baseU
 test("signed-out pages: login, sign up, forgot and reset password", async ({ page }) => {
   const errors = watchErrors(page);
   for (const path of ["/login", "/signup", "/forgot-password", "/reset-password?token=nope"]) {
-    expect((await page.goto(path))?.status(), path).toBe(200);
+    const res = await page.goto(path);
+    expect(res?.status(), path).toBe(200);
+    const h = res!.headers();
+    expect([h["x-frame-options"], h["x-content-type-options"], h["referrer-policy"], h["x-powered-by"]], path).toEqual(["DENY", "nosniff", "strict-origin-when-cross-origin", undefined]);
   }
   await page.goto("/login");
   await page.click('a:has-text("Forgot it?")');
