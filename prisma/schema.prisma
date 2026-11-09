@@ -40,6 +40,7 @@ model User {
   availability        AvailabilityWindow[]
   calendarConnections CalendarConnection[]
   calendarFeeds       CalendarFeed[]
+  pushSubscriptions   PushSubscription[]
   notifications       Notification[]
 }
 
@@ -515,6 +516,7 @@ model Notification {
 enum DeliveryChannel {
   IN_APP
   EMAIL
+  PUSH
 }
 
 enum DeliveryStatus {
@@ -522,6 +524,23 @@ enum DeliveryStatus {
   SENT
   FAILED
   SKIPPED // channel not configured or user opted out
+}
+
+// A browser or installed-app push endpoint (Web Push). Keys are the public parts the
+// browser hands out; they let the server encrypt messages only that device can read.
+model PushSubscription {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint      String    @unique
+  p256dh        String
+  auth          String
+  userAgent     String?
+  createdAt     DateTime  @default(now())
+  lastSuccessAt DateTime?
+  failures      Int       @default(0)
+
+  @@index([userId])
 }
 
 model NotificationDelivery {

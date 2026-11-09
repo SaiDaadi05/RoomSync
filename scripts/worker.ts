@@ -13,7 +13,7 @@ async function tick() {
   const started = Date.now();
   try {
     const r = await runBackgroundJobs();
-    console.log(`[worker] ${new Date().toISOString()} bills_added=${r.billsAdded} reminders=${r.reminders} recaps=${r.recaps} emails_sent=${r.emailsSent} (${Date.now() - started}ms)`);
+    console.log(`[worker] ${new Date().toISOString()} bills_added=${r.billsAdded} reminders=${r.reminders} recaps=${r.recaps} emails_sent=${r.emailsSent} pushes_sent=${r.pushesSent} (${Date.now() - started}ms)`);
   } catch (e) {
     console.error("[worker] tick failed", e);
   }

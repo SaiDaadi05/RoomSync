@@ -1,4 +1,5 @@
 import { prisma } from "./db";
+import { pushConfigured } from "./push";
 
 export function emailConfigured() {
   return Boolean(process.env.SMTP_HOST);
@@ -19,6 +20,7 @@ type NotifyInput = {
  * Create a notification and its per-channel delivery records.
  *  - IN_APP is "SENT" as soon as the row exists (the app reads it), or SKIPPED if the user opted out.
  *  - EMAIL starts PENDING only if the user opted in AND SMTP is configured; the worker sends it.
+ *  - PUSH starts PENDING only if push is configured and the user turned it on for at least one device.
  *    Otherwise it is recorded as SKIPPED with the reason, so nothing pretends an email went out.
  */
 export async function notify(input: NotifyInput) {
@@ -27,6 +29,8 @@ export async function notify(input: NotifyInput) {
   const existing = await prisma.notification.findUnique({ where: { dedupeKey: input.dedupeKey } });
   if (existing) return existing;
   const emailStatus = !user.notifyEmail ? "SKIPPED" : emailConfigured() ? "PENDING" : "SKIPPED";
+  // Push goes to every device the person turned it on for; none means nothing to send.
+  const devices = user.notifyInApp && pushConfigured() ? await prisma.pushSubscription.count({ where: { userId: user.id } }) : 0;
   try {
     return await prisma.notification.create({
       data: {
@@ -44,6 +48,11 @@ export async function notify(input: NotifyInput) {
               channel: "EMAIL",
               status: emailStatus,
               error: emailStatus === "SKIPPED" ? (user.notifyEmail ? "SMTP not configured" : "User opted out") : null,
+            },
+            {
+              channel: "PUSH",
+              status: devices > 0 ? "PENDING" : "SKIPPED",
+              error: devices > 0 ? null : !user.notifyInApp ? "User opted out" : !pushConfigured() ? "Push not configured" : "No devices",
             },
           ],
         },

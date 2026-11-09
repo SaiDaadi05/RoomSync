@@ -17,6 +17,8 @@ import { logoutAction } from "@/app/actions/auth";
 import { googleConfigured } from "@/server/calendar/google";
 import { disconnectCalendarAction } from "@/app/actions/planner";
 import { CalendarFeedRow } from "@/components/calendar-feed";
+import { PushToggle } from "@/components/push-toggle";
+import { countPushDevices, pushConfigured, vapidPublicKey } from "@/server/push";
 import { getFeed } from "@/server/calendar/feed";
 
 export const metadata = { title: "Household & settings" };
@@ -24,7 +26,7 @@ export const metadata = { title: "Household & settings" };
 export default async function HouseholdPage({ searchParams }: { searchParams: Promise<{ calendar?: string; feed?: string; member?: string; released?: string }> }) {
   const { user, household } = await requireHousehold();
   const sp = await searchParams;
-  const [{ members, role }, invites, connections, openCounts, myPlan, handleMap, feed] = await Promise.all([
+  const [{ members, role }, invites, connections, openCounts, myPlan, handleMap, feed, pushDevices] = await Promise.all([
     getHouseholdOverview(user.id, household.id),
     listInvitations(user.id, household.id),
     prisma.calendarConnection.findMany({ where: { userId: user.id }, select: { id: true, provider: true, status: true, accountEmail: true, lastSyncAt: true, lastError: true } }),
@@ -32,6 +34,7 @@ export default async function HouseholdPage({ searchParams }: { searchParams: Pr
     moveOutPlan(user.id, household.id, user.id),
     getPayHandles([user.id]),
     getFeed(user.id, household.id),
+    countPushDevices(user.id),
   ]);
   const released = Number(sp.released ?? 0);
   const myHandles = handleMap.get(user.id) ?? { venmoHandle: null, paypalHandle: null, cashtag: null };
@@ -166,6 +169,7 @@ export default async function HouseholdPage({ searchParams }: { searchParams: Pr
             emailAvailable={emailConfigured()}
             user={{ name: user.name, timezone: user.timezone, preferredStart: minutesToHHMM(user.preferredStartMin), preferredEnd: minutesToHHMM(user.preferredEndMin), notifyInApp: user.notifyInApp, notifyEmail: user.notifyEmail }}
           />
+          <div className="mt-4 border-t border-slate-200 pt-4"><PushToggle publicKey={pushConfigured() ? vapidPublicKey() : null} devices={pushDevices} /></div>
         </div>
       </Section>
 

@@ -13,6 +13,6 @@ describe("cron route", () => {
     const res = await GET(new Request("http://x/api/cron/reminders", { headers: { authorization: "Bearer s3cret-value" } }));
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(Object.keys(body).sort()).toEqual(["billsAdded", "emailsSent", "ms", "recaps", "reminders"]);
+    expect(Object.keys(body).sort()).toEqual(["billsAdded", "emailsSent", "ms", "pushesSent", "recaps", "reminders"]);
   });
 });

@@ -1,6 +1,7 @@
 import { generateReminders, deliverEmails } from "./reminders";
 import { generateWeeklyRecaps } from "./recap";
 import { ensureAllBillExpenses } from "./bills";
+import { deliverPush } from "./push";
 
 /**
  * One background tick. Shared by the long-running worker and the serverless cron route so
@@ -11,5 +12,6 @@ export async function runBackgroundJobs(now = new Date()) {
   const reminders = await generateReminders(now);
   const recaps = await generateWeeklyRecaps(now);
   const emailsSent = await deliverEmails();
-  return { billsAdded, reminders, recaps, emailsSent };
+  const pushesSent = await deliverPush();
+  return { billsAdded, reminders, recaps, emailsSent, pushesSent };
 }

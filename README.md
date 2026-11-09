@@ -29,7 +29,7 @@ Sample logins after `db:seed`: `alex@example.com`, `jordan@example.com`, `sam@ex
 
 ## Environment variables
 
-See `.env.example`. Required: `DATABASE_URL`, `APP_URL`, `ENCRYPTION_KEY`. Optional: `STORAGE_DIR`, `BLOB_READ_WRITE_TOKEN`, `CRON_SECRET`, `DATABASE_URL_UNPOOLED`, `DEMO_MODE_ENABLED`, `SMTP_*`, `GOOGLE_CLIENT_ID/SECRET`, `ANTHROPIC_API_KEY` (assistant).
+See `.env.example`. Required: `DATABASE_URL`, `APP_URL`, `ENCRYPTION_KEY`. Optional: `STORAGE_DIR`, `BLOB_READ_WRITE_TOKEN`, `CRON_SECRET`, `DATABASE_URL_UNPOOLED`, `DEMO_MODE_ENABLED`, `SMTP_*`, `GOOGLE_CLIENT_ID/SECRET`, `ANTHROPIC_API_KEY` (assistant), `VAPID_*` (phone notifications).
 
 ## Deploying to Vercel
 
@@ -56,6 +56,7 @@ See `.env.example`. Required: `DATABASE_URL`, `APP_URL`, `ENCRYPTION_KEY`. Optio
 | Calendar subscribe link (Apple, Google, Outlook) | **Implemented, one way.** Household → Calendars → "Create my calendar link" gives a private `.ics` URL (`/api/calendar/feed/<token>.ics`) listing your own chores, 14 days back to 60 days ahead. Tested with an iCalendar parser; not yet tried in the real Apple/Google apps. The token is stored hashed (plus an encrypted copy so you can copy it again), can be reset or turned off, and stops working if you leave the household. Calendar apps refresh on their own schedule. |
 | Apple Calendar busy times | **Not implemented.** Reading iCloud busy times for planning needs CalDAV with an app-specific password, or a native iOS app (EventKit). Manual availability works meanwhile. |
 | Email reminders | Implemented through SMTP (nodemailer). Inactive until `SMTP_HOST` is set. |
+| Phone notifications (Web Push) | **Implemented, not yet tried on a real phone.** Household → Your preferences → "Notifications on this device". Works in Chrome, Edge and Firefox, on Android, and on iPhone (iOS 16.4+) once RoomSync is added to the Home Screen. Inactive until `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` are set (`npm run vapid`). Payload encryption is tested by decrypting what the server sends; delivery through Apple/Google push services is untested. |
 | Amazon / retailers | Saved product links open the retailer's site for checkout. No ordering, catalog, or Fresh integration, and nothing pretends a purchase happened. |
 | Task swaps | Request → accept/decline. Nothing changes hands until the other roommate accepts; a request expires if either task changes first. |
 | Payments | None. "Record a payment" is bookkeeping only. |
