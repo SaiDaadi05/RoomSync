@@ -73,6 +73,22 @@ Two agents work on this repo (Claude and Codex), driven by different people. The
 | Area | Owner | Branch / PR | Notes |
 |---|---|---|---|
 | App foundation (all 5 stages, first pass) | Claude | `claude/app-foundation` / #2 | Awaiting review |
+| CI workflow (part of #10) | Claude | `claude/ci` (stacked on #2) | Awaiting review |
+| PWA: install + offline shell (part of #9) | Claude | `claude/pwa` (stacked on #2) | Awaiting review |
+| Split by shares, percent, item | Claude | `claude/better-splits` (stacked on #14) | Awaiting review |
+| Edit expenses and shopping items (#12) | Claude | `claude/edit-expenses` (stacked on #2) | Awaiting review |
+| Swap requests with approval (#6) | Claude | `claude/swap-requests` (stacked on #2) | Awaiting review |
+| Move-out settle-up | Claude | `claude/move-out` (stacked on #16) | Awaiting review |
+| Member removal and role changes (part of #11) | Claude | `claude/member-management` (stacked on #2) | Awaiting review |
+| Rebalance with consent + fairness history (#7) | Claude | `claude/rebalance` (stacked on #2) | Awaiting review |
+| AI assistant (per-area tools, confirm before change) | Claude | `claude/assistant` (stacked on #2) | Awaiting review |
+| Recurring bills | Claude | `claude/recurring-bills` (stacked on #2) | Awaiting review |
+| Running low staples | Claude | `claude/running-low` (stacked on #2) | Awaiting review |
+| Weekly recap | Claude | `claude/weekly-recap` (stacked on #2) | Awaiting review |
+| Nudge for overdue chores | Claude | `claude/nudge` (stacked on #2) | Awaiting review |
+| Spending insights + CSV export | Claude | `claude/spending-insights` (stacked on #2) | Awaiting review |
+| Pay links + settle-up reminders | Claude | `claude/pay-links` (stacked on #2) | Awaiting review |
+| House rules + quiet hours | Claude | `claude/house-rules` (stacked on #2) | Awaiting review |
 
 ### Done
 

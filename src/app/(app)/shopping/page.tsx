@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { requireHousehold } from "@/server/session";
-import { listShopping } from "@/server/shopping";
+import { householdStaples, listShopping } from "@/server/shopping";
 import { activeMembers } from "@/server/access";
 import { ActionForm, SubmitButton } from "@/components/forms";
 import { ShoppingBulk } from "@/components/shopping-bulk";
+import { ItemEdit } from "@/components/item-edit";
 import { Avatar, Badge, EmptyState, PageHeader, Section } from "@/components/ui";
 import { addItemAction, claimItemAction, deleteItemAction, restockItemAction, unclaimItemAction } from "@/app/actions/money";
 import { formatCents } from "@/lib/money";
@@ -17,7 +18,7 @@ function hostOf(url: string) {
 
 export default async function ShoppingPage() {
   const { user, household } = await requireHousehold();
-  const [{ open, recent }, members] = await Promise.all([listShopping(user.id, household.id), activeMembers(household.id)]);
+  const [{ open, recent }, members, staples] = await Promise.all([listShopping(user.id, household.id), activeMembers(household.id), householdStaples(user.id, household.id)]);
   const nameOf = (id: string | null) => members.find((m) => m.id === id)?.name ?? "Someone";
 
   return (
@@ -43,16 +44,30 @@ export default async function ShoppingPage() {
         </ActionForm>
       </div>
 
-      <Section title={`Needed · ${open.length}`}>
+      {staples.length > 0 && (
+        <section aria-labelledby="staples-title" className="mb-6">
+          <h2 id="staples-title" className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Running low? One tap adds it back</h2>
+          <div className="flex flex-wrap gap-2">
+            {staples.map((st) => (
+              <form key={st.itemId} action={restockItemAction}>
+                <input type="hidden" name="id" value={st.itemId} />
+                <button className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm hover:border-slate-400" aria-label={`Add ${st.name} back to the list`}>+ {st.name}</button>
+              </form>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <Section title={`On the list · ${open.length}`}>
         {open.length === 0 ? (
           <EmptyState icon="🛒" title="The list is empty" body="Add things the household is running low on. Everyone sees the same list, so nothing gets bought twice." />
         ) : (
-          <ul className="space-y-2">
+          <ul className="card divide-y divide-slate-200 overflow-hidden">
             {open.map((i) => (
-              <li key={i.id} className="card flex items-start gap-3 p-3">
+              <li key={i.id} className="flex items-start gap-3 p-3">
                 <input type="checkbox" name="itemIds" value={i.id} form="bulk" aria-label={`Select ${i.name}`} className="mt-1 h-5 w-5 accent-brand-600" />
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium">{i.name} {i.quantity !== "1" && <span className="text-sm font-normal text-muted">× {i.quantity}</span>}</p>
+                  <p className="font-bold">{i.name} {i.quantity !== "1" && <span className="text-sm font-normal text-muted">× {i.quantity}</span>}</p>
                   {i.notes && <p className="text-xs text-muted">{i.notes}</p>}
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
                     {i.productUrl && (
@@ -64,6 +79,7 @@ export default async function ShoppingPage() {
                       <Link href={`/tasks/${i.errandOccurrence.definition.id}`}><Badge tone="violet">🏃 {i.errandOccurrence.definition.title}</Badge></Link>
                     )}
                   </div>
+                  <ItemEdit item={i} />
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1">
                   {i.status === "CLAIMED" ? (

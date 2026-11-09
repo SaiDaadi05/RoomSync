@@ -47,6 +47,12 @@ async function loadItem(userId: string, itemId: string) {
 export async function updateShoppingItem(userId: string, itemId: string, input: unknown) {
   const item = await loadItem(userId, itemId);
   const data = itemSchema.parse(input);
+  if (item.status !== "PURCHASED") {
+    const dupe = await prisma.shoppingItem.findFirst({
+      where: { householdId: item.householdId, id: { not: item.id }, status: { not: "PURCHASED" }, name: { equals: data.name, mode: "insensitive" } },
+    });
+    if (dupe) throw new AppError(`“${dupe.name}” is already on the list`, "CONFLICT");
+  }
   return prisma.shoppingItem.update({ where: { id: item.id }, data });
 }
 
@@ -179,4 +185,35 @@ export async function listShopping(userId: string, householdId: string) {
     }),
   ]);
   return { open, recent };
+}
+
+/**
+ * "Running low?" staples: things this household has bought at least twice in the last
+ * 90 days and that aren't on the list now, most frequent first. Each comes with the most
+ * recent purchased row so one tap can re-add it with the same quantity, note, and link.
+ */
+export async function householdStaples(userId: string, householdId: string, limit = 8) {
+  await requireMember(userId, householdId);
+  const since = new Date(Date.now() - 90 * 86400_000);
+  const [bought, open] = await Promise.all([
+    prisma.shoppingItem.findMany({
+      where: { householdId, status: "PURCHASED", purchasedAt: { gte: since } },
+      select: { id: true, name: true, purchasedAt: true },
+      orderBy: { purchasedAt: "desc" },
+    }),
+    prisma.shoppingItem.findMany({ where: { householdId, status: { not: "PURCHASED" } }, select: { name: true } }),
+  ]);
+  const onList = new Set(open.map((o) => o.name.trim().toLowerCase()));
+  const groups = new Map<string, { itemId: string; name: string; count: number; last: Date }>();
+  for (const b of bought) {
+    const key = b.name.trim().toLowerCase();
+    if (onList.has(key)) continue;
+    const g = groups.get(key);
+    if (g) g.count++;
+    else groups.set(key, { itemId: b.id, name: b.name, count: 1, last: b.purchasedAt! });
+  }
+  return [...groups.values()]
+    .filter((g) => g.count >= 2)
+    .sort((a, b) => b.count - a.count || b.last.getTime() - a.last.getTime() || a.name.localeCompare(b.name))
+    .slice(0, limit);
 }

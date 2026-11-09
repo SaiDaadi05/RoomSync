@@ -4,13 +4,15 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireHousehold, requireUser } from "@/server/session";
 import { toActionError, type ActionState } from "@/server/action";
-import { attachReceipt, createExpense, deleteExpense, deleteSettlement, recordSettlement } from "@/server/expenses";
+import { attachReceipt, createExpense, deleteExpense, deleteSettlement, recordSettlement, updateExpense } from "@/server/expenses";
 import {
   addShoppingItem, claimShoppingItem, createShoppingErrand, deleteShoppingItem, markPurchased,
-  purchaseWithExpense, restockItem, unclaimShoppingItem,
+  purchaseWithExpense, restockItem, unclaimShoppingItem, updateShoppingItem,
 } from "@/server/shopping";
 import { parseMoneyToCents } from "@/lib/money";
+import { parsePercent } from "@/lib/split";
 import { invalid } from "@/server/errors";
+import { remindToSettle, updatePayHandles } from "@/server/payments";
 
 function refresh() {
   revalidatePath("/home");
@@ -29,22 +31,9 @@ export async function createExpenseAction(_: ActionState, fd: FormData): Promise
   let id: string;
   try {
     const { user, household } = await requireHousehold();
-    const splitMethod = fd.get("splitMethod") === "CUSTOM" ? "CUSTOM" : "EQUAL";
-    const participantIds = fd.getAll("participants").map(String);
-    const participants = participantIds.map((userId) => {
-      if (splitMethod === "EQUAL") return { userId };
-      const raw = String(fd.get(`amt_${userId}`) ?? "").trim();
-      return { userId, amountCents: raw ? parseMoneyToCents(raw) : 0 };
-    });
     const receipt = await receiptFrom(fd);
     const expense = await createExpense(user.id, household.id, {
-      payerId: fd.get("payerId"),
-      amountCents: parseMoneyToCents(String(fd.get("amount") ?? "")),
-      date: fd.get("date"),
-      description: fd.get("description"),
-      category: fd.get("category") || "other",
-      splitMethod,
-      participants,
+      ...expenseFromForm(fd),
       shoppingItemIds: fd.getAll("shoppingItemIds").map(String),
     });
     id = expense.id;
@@ -61,6 +50,76 @@ export async function createExpenseAction(_: ActionState, fd: FormData): Promise
   }
   refresh();
   redirect(`/expenses/${id}`);
+}
+
+const SPLIT_METHODS = ["EQUAL", "CUSTOM", "SHARES", "PERCENT", "ITEMIZED"] as const;
+type SplitMethod = (typeof SPLIT_METHODS)[number];
+
+function expenseFromForm(fd: FormData) {
+  const raw = String(fd.get("splitMethod") ?? "EQUAL");
+  const splitMethod: SplitMethod = (SPLIT_METHODS as readonly string[]).includes(raw) ? (raw as SplitMethod) : "EQUAL";
+  const field = (name: string) => String(fd.get(name) ?? "").trim();
+  const participants = splitMethod === "ITEMIZED" ? [] : fd.getAll("participants").map(String).map((userId) => {
+    switch (splitMethod) {
+      case "CUSTOM": {
+        const v = field(`amt_${userId}`);
+        return { userId, amountCents: v ? parseMoneyToCents(v) : 0 };
+      }
+      case "SHARES": {
+        const v = field(`w_${userId}`) || "0";
+        if (!/^\d{1,6}$/.test(v)) throw invalid("Shares must be whole numbers like 1 or 2");
+        return { userId, weight: Number(v) };
+      }
+      case "PERCENT": {
+        const bp = parsePercent(field(`pct_${userId}`) || "0");
+        if (bp === null) throw invalid("Percents must be numbers like 25 or 12.5");
+        return { userId, weight: bp };
+      }
+      default:
+        return { userId };
+    }
+  });
+  const items = splitMethod !== "ITEMIZED" ? [] : Array.from({ length: Math.min(Number(fd.get("itemCount") ?? 0) || 0, 100) }, (_, i) => i)
+    .filter((i) => field(`item_name_${i}`) || field(`item_amt_${i}`))
+    .map((i) => {
+      const amt = field(`item_amt_${i}`);
+      return { name: field(`item_name_${i}`), amountCents: amt ? parseMoneyToCents(amt) : 0, userIds: fd.getAll(`item_who_${i}`).map(String) };
+    });
+  return {
+    payerId: fd.get("payerId"),
+    amountCents: parseMoneyToCents(String(fd.get("amount") ?? "")),
+    date: fd.get("date"),
+    description: fd.get("description"),
+    category: fd.get("category") || "other",
+    splitMethod,
+    participants,
+    items,
+  };
+}
+
+export async function updateExpenseAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const id = String(fd.get("id"));
+  try {
+    const user = await requireUser();
+    await updateExpense(user.id, id, expenseFromForm(fd));
+  } catch (e) {
+    return toActionError(e);
+  }
+  refresh();
+  redirect(`/expenses/${id}?edited=1`);
+}
+
+export async function updateItemAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const user = await requireUser();
+    await updateShoppingItem(user.id, String(fd.get("id")), {
+      name: fd.get("name"), quantity: fd.get("quantity") ?? undefined, notes: fd.get("notes"), productUrl: fd.get("productUrl"),
+    });
+    refresh();
+    return { ok: true, message: "Saved" };
+  } catch (e) {
+    return toActionError(e);
+  }
 }
 
 export async function uploadReceiptAction(_: ActionState, fd: FormData): Promise<ActionState> {
@@ -183,6 +242,29 @@ export async function shoppingBulkAction(_: ActionState, fd: FormData): Promise<
       return { ok: true, message: "Bought and added to Expenses" };
     }
     throw invalid("Unknown action");
+  } catch (e) {
+    return toActionError(e);
+  }
+}
+
+export async function updatePayHandlesAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const user = await requireUser();
+    await updatePayHandles(user.id, { venmoHandle: fd.get("venmoHandle"), paypalHandle: fd.get("paypalHandle"), cashtag: fd.get("cashtag") });
+    revalidatePath("/household");
+    revalidatePath("/expenses");
+    return { ok: true, message: "Payment apps saved" };
+  } catch (e) {
+    return toActionError(e);
+  }
+}
+
+export async function remindToSettleAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const { user, household } = await requireHousehold();
+    const r = await remindToSettle(user.id, household.id, String(fd.get("debtorId")));
+    const first = r.name.split(" ")[0];
+    return { ok: true, message: r.sent ? `Reminded ${first}` : `${first} was already reminded this week` };
   } catch (e) {
     return toActionError(e);
   }

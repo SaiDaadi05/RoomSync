@@ -335,3 +335,36 @@ export async function quickAddTask(
     assigneeId: input.assigneeId ?? null,
   });
 }
+
+// ---- Nudges ----
+
+/**
+ * Gently remind the assignee of an overdue chore. At most one nudge per chore per
+ * household-local day, whoever sends it, so nobody gets piled on.
+ * Returns `sent: false` when someone already nudged today.
+ */
+export async function nudgeOccurrence(userId: string, occurrenceId: string, now = new Date()) {
+  const occ = await loadOccurrence(userId, occurrenceId);
+  if (occ.status !== "PENDING") throw invalid("That task isn't open any more");
+  if (!occ.assigneeId) throw invalid("Nobody is assigned yet. Claim it or assign someone instead.");
+  if (occ.assigneeId === userId) throw invalid("That one's yours");
+  if (occ.dueAt > now) throw invalid("You can only nudge once it's overdue");
+  const [household, sender, assignee] = await Promise.all([
+    prisma.household.findUniqueOrThrow({ where: { id: occ.householdId }, select: { timezone: true } }),
+    prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { name: true } }),
+    prisma.membership.findFirst({ where: { householdId: occ.householdId, userId: occ.assigneeId, leftAt: null }, include: { user: { select: { name: true } } } }),
+  ]);
+  if (!assignee) throw invalid("That person isn't in the household any more");
+  const day = DateTime.fromJSDate(now).setZone(household.timezone).toISODate()!;
+  const dedupeKey = `nudge:${occ.id}:${day}`;
+  if (await prisma.notification.findUnique({ where: { dedupeKey } })) return { sent: false, assigneeName: assignee.user.name };
+  const n = await notify({
+    userId: occ.assigneeId, householdId: occ.householdId, type: "task_nudge",
+    title: `${sender.name.split(" ")[0]} nudged you: ${occ.definition.title}`,
+    body: `It was due ${DateTime.fromJSDate(occ.dueAt).setZone(household.timezone).toFormat("ccc h:mm a")}. Mark it done, or pick a new time if today doesn't work.`,
+    link: `/tasks/${occ.definitionId}`, dedupeKey,
+  });
+  if (!n) return { sent: false, assigneeName: assignee.user.name }; // lost a race with another nudge
+  await prisma.taskEvent.create({ data: { occurrenceId: occ.id, actorId: userId, type: "nudged" } });
+  return { sent: true, assigneeName: assignee.user.name };
+}

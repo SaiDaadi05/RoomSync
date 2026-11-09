@@ -149,3 +149,52 @@ describe("shopping", () => {
     await expect(purchaseWithExpense(h2.owner.id, h2.household.id, { itemIds: [item.id], amountCents: 100, date: "2026-11-01", participantIds: [h2.owner.id] })).rejects.toThrow(/not found/);
   });
 });
+
+describe("editing", () => {
+  it("editing an expense replaces splits atomically and updates balances", async () => {
+    const { updateExpense, getExpense } = await import("@/server/expenses");
+    const { household, members: [a, b, c] } = await makeHousehold(2);
+    const e = await createExpense(a.id, household.id, {
+      payerId: a.id, amountCents: 9000, date: "2026-11-01", description: "Groceries", splitMethod: "EQUAL",
+      participants: [{ userId: a.id }, { userId: b.id }, { userId: c.id }],
+    });
+    // Bad custom split is rejected and leaves the original untouched
+    await expect(updateExpense(b.id, e.id, {
+      payerId: b.id, amountCents: 6000, date: "2026-11-01", description: "Groceries", splitMethod: "CUSTOM",
+      participants: [{ userId: a.id, amountCents: 1000 }, { userId: b.id, amountCents: 1000 }],
+    })).rejects.toThrow(/add up to/);
+    expect((await getExpense(a.id, e.id)).amountCents).toBe(9000);
+
+    await updateExpense(b.id, e.id, {
+      payerId: b.id, amountCents: 6000, date: "2026-11-02", description: "Groceries (fixed)", splitMethod: "CUSTOM",
+      participants: [{ userId: a.id, amountCents: 4000 }, { userId: b.id, amountCents: 2000 }],
+    });
+    const fresh = await getExpense(a.id, e.id);
+    expect(fresh.splits).toHaveLength(2);
+    expect(fresh.editedById).toBe(b.id);
+    const { balances } = await computeBalances(a.id, household.id);
+    const by = Object.fromEntries(balances.map((x) => [x.userId, x.cents]));
+    expect(by).toEqual({ [a.id]: -4000, [b.id]: 4000, [c.id]: 0 });
+  });
+
+  it("outsiders can't edit; deleted expenses can't be edited", async () => {
+    const { updateExpense } = await import("@/server/expenses");
+    const h1 = await makeHousehold(0);
+    const h2 = await makeHousehold(0);
+    const input = { payerId: h1.owner.id, amountCents: 100, date: "2026-11-01", description: "x", splitMethod: "EQUAL", participants: [{ userId: h1.owner.id }] };
+    const e = await createExpense(h1.owner.id, h1.household.id, input);
+    await expect(updateExpense(h2.owner.id, e.id, { ...input, payerId: h2.owner.id, participants: [{ userId: h2.owner.id }] })).rejects.toThrow(/not a member/);
+    await deleteExpense(h1.owner.id, e.id);
+    await expect(updateExpense(h1.owner.id, e.id, input)).rejects.toThrow(/not found/);
+  });
+
+  it("renaming a shopping item can't create a duplicate", async () => {
+    const { updateShoppingItem } = await import("@/server/shopping");
+    const { household, owner } = await makeHousehold(0);
+    await addShoppingItem(owner.id, household.id, { name: "Milk" });
+    const eggs = await addShoppingItem(owner.id, household.id, { name: "Eggs" });
+    await expect(updateShoppingItem(owner.id, eggs.id, { name: "milk" })).rejects.toThrow(/already on the list/);
+    const renamed = await updateShoppingItem(owner.id, eggs.id, { name: "Eggs (dozen)", quantity: "2", productUrl: "https://example.com/eggs" });
+    expect(renamed).toMatchObject({ name: "Eggs (dozen)", quantity: "2", productUrl: "https://example.com/eggs" });
+  });
+});

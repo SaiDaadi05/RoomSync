@@ -17,25 +17,29 @@ datasource db {
 // ---------- Accounts ----------
 
 model User {
-  id                 String   @id @default(cuid())
-  email              String   @unique
-  name               String
-  passwordHash       String
-  timezone           String   @default("America/New_York")
+  id                String   @id @default(cuid())
+  email             String   @unique
+  name              String
+  passwordHash      String
+  timezone          String   @default("America/New_York")
   // Preferred hours for doing tasks, in minutes after local midnight.
-  preferredStartMin  Int      @default(540) // 09:00
-  preferredEndMin    Int      @default(1260) // 21:00
-  notifyInApp        Boolean  @default(true)
-  notifyEmail        Boolean  @default(false)
+  preferredStartMin Int      @default(540) // 09:00
+  preferredEndMin   Int      @default(1260) // 21:00
+  notifyInApp       Boolean  @default(true)
+  notifyEmail       Boolean  @default(false)
+  // Optional pay handles, shown to housemates so "Settle up" can open their payment app.
+  venmoHandle       String?
+  paypalHandle      String?
+  cashtag           String?
   // Demo users/households are created by the "Try the demo" button and never mix with real data.
-  isDemo             Boolean  @default(false)
-  createdAt          DateTime @default(now())
+  isDemo            Boolean  @default(false)
+  createdAt         DateTime @default(now())
 
-  sessions           Session[]
-  memberships        Membership[]
-  availability       AvailabilityWindow[]
+  sessions            Session[]
+  memberships         Membership[]
+  availability        AvailabilityWindow[]
   calendarConnections CalendarConnection[]
-  notifications      Notification[]
+  notifications       Notification[]
 }
 
 model Session {
@@ -62,15 +66,23 @@ model Household {
   currency  String   @default("USD")
   isDemo    Boolean  @default(false)
   createdAt DateTime @default(now())
+  // House rules (free text) and quiet hours (minutes after local midnight; may wrap past midnight).
+  rules          String?
+  quietStartMin  Int?
+  quietEndMin    Int?
 
-  memberships   Membership[]
-  invitations   Invitation[]
-  tasks         TaskDefinition[]
-  occurrences   TaskOccurrence[]
-  shoppingItems ShoppingItem[]
-  expenses      Expense[]
-  settlements   Settlement[]
-  notifications Notification[]
+  memberships      Membership[]
+  invitations      Invitation[]
+  tasks            TaskDefinition[]
+  occurrences      TaskOccurrence[]
+  shoppingItems    ShoppingItem[]
+  expenses         Expense[]
+  settlements      Settlement[]
+  notifications    Notification[]
+  swapRequests     SwapRequest[]
+  handoffs         HandoffRequest[]
+  assistantActions AssistantAction[]
+  recurringBills   RecurringBill[]
 }
 
 model Membership {
@@ -118,7 +130,7 @@ enum Recurrence {
 
 enum AssignmentMode {
   UNASSIGNED
-  FIXED  // always the same roommate
+  FIXED // always the same roommate
   ROTATE // round-robin through eligible roommates
 }
 
@@ -132,14 +144,14 @@ model TaskDefinition {
   category         String         @default("cleaning")
   estimatedMinutes Int            @default(15)
   recurrence       Recurrence     @default(NONE)
-  interval         Int            @default(1)  // every N days/weeks
-  weekdays         Int[]          // ISO weekday 1=Mon..7=Sun (WEEKLY only)
-  startsOn         String         // local date YYYY-MM-DD in household tz
+  interval         Int            @default(1) // every N days/weeks
+  weekdays         Int[] // ISO weekday 1=Mon..7=Sun (WEEKLY only)
+  startsOn         String // local date YYYY-MM-DD in household tz
   endsOn           String?
   dueTime          String         @default("20:00") // local HH:mm
   assignmentMode   AssignmentMode @default(UNASSIGNED)
-  assigneeId       String?        // FIXED mode
-  eligibleUserIds  String[]       // ROTATE pool (and the people who may be suggested)
+  assigneeId       String? // FIXED mode
+  eligibleUserIds  String[] // ROTATE pool (and the people who may be suggested)
   createdById      String
   archivedAt       DateTime?
   createdAt        DateTime       @default(now())
@@ -164,9 +176,9 @@ model TaskOccurrence {
   definition      TaskDefinition   @relation(fields: [definitionId], references: [id], onDelete: Cascade)
   householdId     String
   household       Household        @relation(fields: [householdId], references: [id], onDelete: Cascade)
-  sequence        Int              // 0-based index in the series (drives rotation)
-  originalDueAt   DateTime         // the slot the rule generated; never changes
-  dueAt           DateTime         // may move when rescheduled
+  sequence        Int // 0-based index in the series (drives rotation)
+  originalDueAt   DateTime // the slot the rule generated; never changes
+  dueAt           DateTime // may move when rescheduled
   status          OccurrenceStatus @default(PENDING)
   assigneeId      String?
   completedAt     DateTime?
@@ -181,6 +193,9 @@ model TaskOccurrence {
   events         TaskEvent[]
   calendarEvents CalendarEventLink[]
   shoppingItems  ShoppingItem[]
+  swapsOffered   SwapRequest[]       @relation("SwapFrom")
+  swapsWanted    SwapRequest[]       @relation("SwapTo")
+  handoffs       HandoffRequest[]
 
   @@unique([definitionId, originalDueAt])
   @@index([householdId, dueAt])
@@ -192,11 +207,69 @@ model TaskEvent {
   occurrenceId String
   occurrence   TaskOccurrence @relation(fields: [occurrenceId], references: [id], onDelete: Cascade)
   actorId      String?
-  type         String         // created | assigned | completed | skipped | rescheduled | reopened | scheduled | swapped
+  type         String // created | assigned | completed | skipped | rescheduled | reopened | scheduled | swapped
   data         Json?
   createdAt    DateTime       @default(now())
 
   @@index([occurrenceId])
+}
+
+enum SwapStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+  EXPIRED // a task changed (done, skipped, reassigned) before anyone answered
+}
+
+// "Will you take my task in exchange for yours?" Nothing changes hands until the
+// other roommate accepts.
+model SwapRequest {
+  id               String         @id @default(cuid())
+  householdId      String
+  household        Household      @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  fromUserId       String
+  toUserId         String
+  fromOccurrenceId String
+  fromOccurrence   TaskOccurrence @relation("SwapFrom", fields: [fromOccurrenceId], references: [id], onDelete: Cascade)
+  toOccurrenceId   String
+  toOccurrence     TaskOccurrence @relation("SwapTo", fields: [toOccurrenceId], references: [id], onDelete: Cascade)
+  message          String?
+  status           SwapStatus     @default(PENDING)
+  createdAt        DateTime       @default(now())
+  respondedAt      DateTime?
+
+  @@index([householdId, status])
+  @@index([toUserId, status])
+}
+
+enum HandoffStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+}
+
+// "Can you take this task?" / "Can I take that one off you?" A one-way reassignment
+// of a single occurrence. The person who didn't ask must accept before anything moves.
+// Rebalancing suggestions are sent as handoffs, so nothing is reassigned without consent.
+model HandoffRequest {
+  id            String         @id @default(cuid())
+  householdId   String
+  household     Household      @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  occurrenceId  String
+  occurrence    TaskOccurrence @relation(fields: [occurrenceId], references: [id], onDelete: Cascade)
+  fromUserId    String // current assignee who would give it up
+  toUserId      String // roommate who would take it on
+  requestedById String // either fromUserId or toUserId
+  source        String         @default("manual") // manual | rebalance
+  message       String?
+  status        HandoffStatus  @default(PENDING)
+  createdAt     DateTime       @default(now())
+  respondedAt   DateTime?
+
+  @@index([householdId, status])
+  @@index([occurrenceId, status])
 }
 
 // ---------- Availability & calendars ----------
@@ -206,8 +279,8 @@ model AvailabilityWindow {
   id       String @id @default(cuid())
   userId   String
   user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  weekday  Int    // 1=Mon..7=Sun
-  startMin Int    // minutes after local midnight
+  weekday  Int // 1=Mon..7=Sun
+  startMin Int // minutes after local midnight
   endMin   Int
 
   @@index([userId])
@@ -263,7 +336,7 @@ model CalendarEventLink {
 
 enum ShoppingStatus {
   NEEDED
-  CLAIMED   // someone said they'll buy it
+  CLAIMED // someone said they'll buy it
   PURCHASED
 }
 
@@ -274,7 +347,7 @@ model ShoppingItem {
   name               String
   quantity           String          @default("1")
   notes              String?
-  productUrl         String?         // saved link; checkout happens on the retailer's site
+  productUrl         String? // saved link; checkout happens on the retailer's site
   status             ShoppingStatus  @default(NEEDED)
   addedById          String
   claimedById        String?
@@ -295,28 +368,64 @@ model ShoppingItem {
 enum SplitMethod {
   EQUAL
   CUSTOM
+  SHARES // weights are whole shares, e.g. 2:1:1
+  PERCENT // weights are basis points (percent × 100), summing to 10000
+  ITEMIZED // per-item splits; tax/tip shared in proportion
 }
 
 model Expense {
+  id              String         @id @default(cuid())
+  householdId     String
+  household       Household      @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  payerId         String
+  amountCents     Int
+  date            String // local date YYYY-MM-DD
+  description     String
+  category        String         @default("groceries")
+  splitMethod     SplitMethod    @default(EQUAL)
+  receiptKey      String? // storage key; served only via /api/receipts/[expenseId]
+  receiptMime     String?
+  createdById     String
+  deletedAt       DateTime?
+  editedAt        DateTime?
+  editedById      String?
+  createdAt       DateTime       @default(now())
+  // Set when the expense was added automatically by a recurring bill.
+  recurringBillId String?
+  recurringBill   RecurringBill? @relation(fields: [recurringBillId], references: [id], onDelete: SetNull)
+  period          String? // YYYY-MM the bill was for
+
+  splits        ExpenseSplit[]
+  items         ExpenseItem[]
+  shoppingItems ShoppingItem[]
+
+  @@unique([recurringBillId, period]) // one expense per bill per month, even if generation runs twice
+  @@index([householdId, date])
+}
+
+// Rent, internet, utilities: added to Expenses automatically each month on dayOfMonth
+// (household timezone). Changing a bill only affects months not yet added.
+model RecurringBill {
   id           String      @id @default(cuid())
   householdId  String
   household    Household   @relation(fields: [householdId], references: [id], onDelete: Cascade)
-  payerId      String
-  amountCents  Int
-  date         String      // local date YYYY-MM-DD
   description  String
-  category     String      @default("groceries")
+  amountCents  Int
+  payerId      String
+  category     String      @default("rent")
   splitMethod  SplitMethod @default(EQUAL)
-  receiptKey   String?     // storage key; served only via /api/receipts/[expenseId]
-  receiptMime  String?
+  participants Json // [{ userId, amountCents? }] in the same shape as a one-off expense
+  dayOfMonth   Int // 1-28 so it exists in every month
+  startMonth   String // YYYY-MM, first month to add
+  pausedAt     DateTime?
+  lastError    String?
   createdById  String
-  deletedAt    DateTime?
   createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 
-  splits        ExpenseSplit[]
-  shoppingItems ShoppingItem[]
+  expenses Expense[]
 
-  @@index([householdId, date])
+  @@index([householdId])
 }
 
 model ExpenseSplit {
@@ -325,8 +434,22 @@ model ExpenseSplit {
   expense     Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
   userId      String
   amountCents Int
+  weight      Int? // shares or basis points for SHARES / PERCENT
 
   @@unique([expenseId, userId])
+}
+
+// Line items of an ITEMIZED expense, kept so the split can be shown and edited later.
+model ExpenseItem {
+  id          String   @id @default(cuid())
+  expenseId   String
+  expense     Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  position    Int
+  name        String
+  amountCents Int
+  userIds     String[]
+
+  @@index([expenseId])
 }
 
 // Bookkeeping only: records that money changed hands outside RoomSync.
@@ -353,7 +476,7 @@ model Notification {
   user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   householdId String?
   household   Household? @relation(fields: [householdId], references: [id], onDelete: Cascade)
-  type        String     // task_due_soon | task_overdue | task_assigned | ...
+  type        String // task_due_soon | task_overdue | task_assigned | ...
   title       String
   body        String?
   link        String?
@@ -389,4 +512,33 @@ model NotificationDelivery {
   error          String?
 
   @@unique([notificationId, channel])
+}
+
+// ---------- Assistant ----------
+
+enum AssistantActionStatus {
+  PENDING
+  CONFIRMED
+  DISCARDED
+  FAILED
+}
+
+// A change the AI assistant drafted. Nothing happens until the user who asked taps
+// Confirm; the stored payload (not anything sent back from the browser) is what runs,
+// through the normal service layer, so all access and money rules still apply.
+model AssistantAction {
+  id          String                @id @default(cuid())
+  householdId String
+  household   Household             @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  userId      String
+  kind        String // add_expense | record_settlement | add_shopping_items | mark_bought | add_task | complete_task
+  payload     Json
+  summary     String
+  status      AssistantActionStatus @default(PENDING)
+  error       String?
+  resultLink  String?
+  createdAt   DateTime              @default(now())
+  decidedAt   DateTime?
+
+  @@index([userId, status])
 }

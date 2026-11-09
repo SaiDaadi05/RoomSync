@@ -9,35 +9,62 @@ import { ReceiptUpload } from "@/components/receipt-upload";
 import { deleteExpenseAction } from "@/app/actions/money";
 import { AppError } from "@/server/errors";
 
-export default async function ExpenseDetail({ params }: { params: Promise<{ id: string }> }) {
+const SPLIT_LABEL = { EQUAL: "equally", CUSTOM: "by custom amounts", SHARES: "by shares", PERCENT: "by percent", ITEMIZED: "by item" } as const;
+
+export default async function ExpenseDetail({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ edited?: string }> }) {
   const { id } = await params;
+  const { edited } = await searchParams;
   const { user, household } = await requireHousehold();
   let e;
   try { e = await getExpense(user.id, id); } catch (err) { if (err instanceof AppError) notFound(); throw err; }
-  const people = await prisma.user.findMany({ where: { id: { in: [e.payerId, ...e.splits.map((s) => s.userId)] } }, select: { id: true, name: true } });
+  const people = await prisma.user.findMany({ where: { id: { in: [e.payerId, ...e.splits.map((s) => s.userId), ...(e.editedById ? [e.editedById] : []), ...e.items.flatMap((i) => i.userIds)] } }, select: { id: true, name: true } });
   const nameOf = (uid: string) => people.find((p) => p.id === uid)?.name ?? "Someone";
   const cur = household.currency;
   return (
     <>
       <Link href="/expenses" className="mb-3 inline-block text-sm font-medium text-brand-700">← Expenses</Link>
+      {edited && <p role="status" className="mb-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">Saved. Balances are updated.</p>}
       <div className="card mb-5 p-5">
+        <div className="float-right"><Link href={`/expenses/${e.id}/edit`} className="btn-secondary">Edit</Link></div>
         <p className="text-sm text-muted">{e.date} · <span className="capitalize">{e.category}</span></p>
         <h1 className="text-xl font-bold">{e.description}</h1>
         <p className="mt-2 text-3xl font-bold tabular-nums">{formatCents(e.amountCents, cur)}</p>
-        <p className="mt-1 text-sm text-muted">Paid by <b className="text-ink">{nameOf(e.payerId)}</b> · split {e.splitMethod === "EQUAL" ? "equally" : "by custom amounts"}</p>
+        <p className="mt-1 text-sm text-muted">Paid by <b className="text-ink">{nameOf(e.payerId)}</b> · split {SPLIT_LABEL[e.splitMethod]}</p>
+        {e.editedAt && <p className="mt-1 text-xs text-muted">Edited by {nameOf(e.editedById ?? "")} on {e.editedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</p>}
+        {e.recurringBillId && (
+          <p className="mt-2 text-xs text-muted">Added automatically by a <Link href={`/expenses/bills/${e.recurringBillId}`} className="font-semibold text-brand-700">recurring bill</Link>. Deleting it skips this month only.</p>
+        )}
       </div>
       <Section title="Who owes what">
         <ul className="card divide-y divide-slate-100">
           {e.splits.map((s) => (
             <li key={s.id} className="flex items-center gap-3 px-4 py-3">
               <Avatar id={s.userId} name={nameOf(s.userId)} size="sm" />
-              <span className="flex-1">{nameOf(s.userId)}</span>
+              <span className="flex-1">{nameOf(s.userId)}{s.weight != null && <span className="text-xs text-muted"> · {e.splitMethod === "PERCENT" ? `${s.weight / 100}%` : `${s.weight} share${s.weight === 1 ? "" : "s"}`}</span>}</span>
               <span className="tabular-nums">{formatCents(s.amountCents, cur)}</span>
               {s.userId === e.payerId && <Badge tone="green">paid</Badge>}
             </li>
           ))}
         </ul>
       </Section>
+      {e.items.length > 0 && (
+        <Section title="Items">
+          <ul className="card divide-y divide-slate-100 text-sm">
+            {e.items.map((i) => (
+              <li key={i.id} className="flex items-center gap-3 px-4 py-2.5">
+                <span className="flex-1">{i.name}<span className="block text-xs text-muted">{i.userIds.map(nameOf).join(", ")}</span></span>
+                <span className="tabular-nums">{formatCents(i.amountCents, cur)}</span>
+              </li>
+            ))}
+            {e.items.reduce((s, i) => s + i.amountCents, 0) < e.amountCents && (
+              <li className="flex items-center gap-3 px-4 py-2.5 text-muted">
+                <span className="flex-1">Tax, tip and fees, shared in proportion</span>
+                <span className="tabular-nums">{formatCents(e.amountCents - e.items.reduce((s, i) => s + i.amountCents, 0), cur)}</span>
+              </li>
+            )}
+          </ul>
+        </Section>
+      )}
       {e.shoppingItems.length > 0 && (
         <Section title="Shopping items">
           <p className="card px-4 py-3 text-sm">{e.shoppingItems.map((i) => i.name).join(", ")}</p>

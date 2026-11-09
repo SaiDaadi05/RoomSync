@@ -3,10 +3,13 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { DateTime } from "luxon";
+import { hhmmToMinutes } from "@/lib/time";
 import {
-  acceptInvitation, createHousehold, createInvitation, leaveHousehold, revokeInvitation, updateHousehold,
+  acceptInvitation, createHousehold, createInvitation, leaveHousehold, revokeInvitation, updateHousehold, updateHouseRules,
 } from "@/server/households";
 import { createTask } from "@/server/tasks";
+import { removeMember, setMemberRole } from "@/server/members";
+import { recordMoveOut } from "@/server/moveout";
 import { requireHousehold, requireUser, setCurrentHousehold } from "@/server/session";
 import { toActionError, type ActionState } from "@/server/action";
 import { STARTER_CHORES } from "@/lib/starter-chores";
@@ -94,12 +97,64 @@ export async function updateHouseholdAction(_: ActionState, fd: FormData): Promi
   }
 }
 
-export async function leaveHouseholdAction(_: ActionState, _fd: FormData): Promise<ActionState> {
+export async function leaveHouseholdAction(_: ActionState, fd: FormData): Promise<ActionState> {
   try {
     const { user, household } = await requireHousehold();
-    await leaveHousehold(user.id, household.id);
+    await leaveHousehold(user.id, household.id, { acknowledgeBalance: fd.get("acknowledgeBalance") === "on" });
   } catch (e) {
     return toActionError(e);
   }
   redirect("/home");
+}
+
+export async function removeMemberAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  let released = 0;
+  try {
+    const { user, household } = await requireHousehold();
+    const r = await removeMember(user.id, household.id, String(fd.get("memberId") ?? ""));
+    released = r.releasedOccurrences;
+  } catch (e) {
+    return toActionError(e);
+  }
+  // The removed row disappears, so report the result on the page instead of inside the form.
+  revalidatePath("/", "layout");
+  redirect(`/household?member=removed&released=${released}#roommates`);
+}
+
+export async function setMemberRoleAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const { user, household } = await requireHousehold();
+    const role = fd.get("role") === "OWNER" ? "OWNER" : "MEMBER";
+    await setMemberRole(user.id, household.id, String(fd.get("memberId") ?? ""), role);
+    revalidatePath("/household");
+    return { ok: true, message: role === "OWNER" ? "They're now an owner." : "They're now a regular member." };
+  } catch (e) {
+    return toActionError(e);
+  }
+}
+
+export async function recordMoveOutAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const { user, household } = await requireHousehold();
+    const payments = await recordMoveOut(user.id, household.id, String(fd.get("memberId") || user.id));
+    revalidatePath("/expenses", "layout");
+    revalidatePath("/household");
+    revalidatePath("/home");
+    return { ok: true, message: `Recorded ${payments.length} payment${payments.length === 1 ? "" : "s"}. Balance is now settled.` };
+  } catch (e) {
+    return toActionError(e);
+  }
+}
+
+export async function updateHouseRulesAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const { user, household } = await requireHousehold();
+    const t = (k: string) => { const v = String(fd.get(k) ?? "").trim(); return /^\d{2}:\d{2}$/.test(v) ? hhmmToMinutes(v) : null; };
+    await updateHouseRules(user.id, household.id, { rules: fd.get("rules"), quietStartMin: t("quietStart"), quietEndMin: t("quietEnd") });
+    revalidatePath("/household");
+    revalidatePath("/planner");
+    return { ok: true, message: "House rules saved" };
+  } catch (e) {
+    return toActionError(e);
+  }
 }

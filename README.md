@@ -29,7 +29,15 @@ Sample logins after `db:seed`: `alex@example.com`, `jordan@example.com`, `sam@ex
 
 ## Environment variables
 
-See `.env.example`. Required: `DATABASE_URL`, `APP_URL`, `ENCRYPTION_KEY`. Optional: `STORAGE_DIR`, `DEMO_MODE_ENABLED`, `SMTP_*`, `GOOGLE_CLIENT_ID/SECRET`.
+See `.env.example`. Required: `DATABASE_URL`, `APP_URL`, `ENCRYPTION_KEY`. Optional: `STORAGE_DIR`, `BLOB_READ_WRITE_TOKEN`, `CRON_SECRET`, `DATABASE_URL_UNPOOLED`, `DEMO_MODE_ENABLED`, `SMTP_*`, `GOOGLE_CLIENT_ID/SECRET`, `ANTHROPIC_API_KEY` (assistant).
+
+## Deploying to Vercel
+
+1. **Project:** import the GitHub repo in Vercel (framework: Next.js, no build settings to change). Vercel runs `npm run vercel-build`, which generates the Prisma client, applies migrations with `prisma migrate deploy`, then builds.
+2. **Database:** add a Neon Postgres database from the Vercel Marketplace (Storage tab) and connect it to the project. It sets `DATABASE_URL` (pooled, used by the app) and `DATABASE_URL_UNPOOLED` (direct, used for migrations).
+3. **Receipts:** create a **private** Blob store (Storage tab) and connect it. It sets `BLOB_READ_WRITE_TOKEN`, which switches receipt storage from local disk to Blob.
+4. **Env vars:** set `APP_URL` (the production URL, e.g. `https://roomsync.vercel.app`), `ENCRYPTION_KEY`, `CRON_SECRET`, and `DEMO_MODE_ENABLED`. `SMTP_*` and `GOOGLE_*` are optional, as locally. For Google Calendar, add `${APP_URL}/api/calendar/google/callback` to the OAuth client's redirect URIs.
+5. **Reminders:** there's no long-running worker on Vercel. `GET /api/cron/reminders` does one worker tick. `vercel.json` schedules it daily (the Hobby plan limit), and `.github/workflows/reminders.yml` calls it every 15 minutes once the repo has `APP_URL` and `CRON_SECRET` secrets.
 
 ## Architecture
 
@@ -48,7 +56,19 @@ See `.env.example`. Required: `DATABASE_URL`, `APP_URL`, `ENCRYPTION_KEY`. Optio
 | Apple Calendar | **Not implemented.** Apple has no public OAuth/REST calendar API for web apps. Options: (a) CalDAV against iCloud with an app-specific password the user generates, or (b) a native iOS companion using EventKit. Needs a product decision before building. Manual availability works meanwhile. |
 | Email reminders | Implemented through SMTP (nodemailer). Inactive until `SMTP_HOST` is set. |
 | Amazon / retailers | Saved product links open the retailer's site for checkout. No ordering, catalog, or Fresh integration, and nothing pretends a purchase happened. |
+| Task swaps | Request → accept/decline. Nothing changes hands until the other roommate accepts; a request expires if either task changes first. |
 | Payments | None. "Record a payment" is bookkeeping only. |
+| AI assistant (Claude) | **Implemented, not yet tested against the live API** (no key in the build environment). The agent loop, tools, and confirm flow are tested with a scripted fake client. Inactive until `ANTHROPIC_API_KEY` is set. |
+
+### AI assistant
+
+`/assistant` (sparkle icon in the header) takes plain-language requests like "I paid $60 for internet, split with everyone" or "who owes me?".
+
+- One assistant (`src/server/assistant/run.ts`) with tools grouped by area in `tools.ts`: **expenses** (balances, recent ledger, draft expense, draft pay-back), **shopping** (list, draft add, draft mark bought), **chores** (open tasks, draft task, draft complete), and **planner** (workload). One request can use several areas.
+- **Read tools** run immediately, through the same service functions as the UI, so they only see the user's own household.
+- **Draft tools never change data.** They validate the request and store an `AssistantAction`. The user taps Confirm, and then the *stored* payload runs through the normal service layer (`actions.ts`), so membership checks and money rules still apply. Drafts can only be confirmed by the person who asked, run once, and expire after 24 hours.
+- Text from roommates (item names, task titles) is treated as data, not instructions, and every write still needs a tap.
+- Model: `claude-opus-5-5` at low effort, with server-side refusal fallback (`fallbacks: "default"`). Override with `ASSISTANT_MODEL`. There's a per-user limit of 20 messages per 10 minutes (in memory, per server process).
 
 ### Google Calendar setup
 

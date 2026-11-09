@@ -4,7 +4,7 @@ import { DateTime } from "luxon";
 import { prisma } from "./db";
 import { createHousehold } from "./households";
 import { createTask, ensureOccurrences, completeOccurrence } from "./tasks";
-import { addShoppingItem, claimShoppingItem, purchaseWithExpense } from "./shopping";
+import { addShoppingItem, claimShoppingItem, markPurchased, purchaseWithExpense } from "./shopping";
 import { createExpense, recordSettlement } from "./expenses";
 
 type SampleOptions = { isDemo: boolean; emailDomain: string; password?: string; householdName?: string; timezone?: string };
@@ -92,6 +92,11 @@ export async function createSampleHousehold(opts: SampleOptions) {
   });
   const boughtItem = await addShoppingItem(jordan.id, household.id, { name: "Sponges" });
   await purchaseWithExpense(jordan.id, household.id, { itemIds: [boughtItem.id], amountCents: 499, date: d(3), participantIds: all });
+  // A little purchase history, so "Running low?" has staples to suggest.
+  for (const [name, buyer] of [["Toilet paper", sam], ["Eggs", alex], ["Toilet paper", jordan], ["Eggs", sam], ["Sponges", alex]] as const) {
+    const it = await addShoppingItem(buyer.id, household.id, { name });
+    await markPurchased(buyer.id, [it.id]);
+  }
   await recordSettlement(sam.id, household.id, { fromUserId: sam.id, toUserId: alex.id, amountCents: 2000, date: d(2), note: "Venmo" });
 
   // Availability (manual, weekly): weekday evenings + weekend afternoons, slightly different per person
