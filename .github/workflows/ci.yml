@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: roomsync
+          POSTGRES_PASSWORD: roomsync
+          POSTGRES_DB: roomsync_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U roomsync"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://roomsync:roomsync@localhost:5432/roomsync_test
+      APP_URL: http://localhost:3000
+      ENCRYPTION_KEY: BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - name: Typecheck
+        run: npm run lint
+      - name: Tests (real Postgres)
+        run: |
+          echo "DATABASE_URL=$DATABASE_URL" > .env.test
+          npm test
+      - name: Production build
+        run: npm run build

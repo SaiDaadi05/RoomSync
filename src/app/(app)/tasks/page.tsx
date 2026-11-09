@@ -6,7 +6,7 @@ import { activeMembers } from "@/server/access";
 import { TaskList, type OccWithDef } from "@/components/task-row";
 import { EmptyState, LinkButton, PageHeader, Section } from "@/components/ui";
 
-export const metadata = { title: "Tasks" };
+export const metadata = { title: "Chores" };
 
 const VIEWS = [
   { key: "mine", label: "Mine" },
@@ -36,7 +36,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
   } else {
     const pending = await listOccurrences(user.id, household.id, { status: "PENDING", to: weekAhead, assigneeId: assigneeFilter, category: sp.category });
     groups = [
-      { title: "Overdue", items: pending.filter((o) => o.dueAt < now.toJSDate()) },
+      { title: "Running late", items: pending.filter((o) => o.dueAt < now.toJSDate()) },
       { title: "Today", items: pending.filter((o) => o.dueAt >= now.toJSDate() && o.dueAt <= endOfToday) },
       { title: "Next two weeks", items: pending.filter((o) => o.dueAt > endOfToday) },
     ];
@@ -52,11 +52,11 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
 
   return (
     <>
-      <PageHeader title="Tasks" action={<LinkButton href="/tasks/new">+ New</LinkButton>} />
-      <div className="mb-3 flex gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1" role="tablist">
+      <PageHeader title="Chores & errands" subtitle="Who does what, and when" action={<LinkButton href="/tasks/new">+ New chore</LinkButton>} />
+      <div className="mb-3 flex gap-1 overflow-x-auto rounded-full bg-white p-1 shadow-sm ring-1 ring-slate-200" role="tablist">
         {VIEWS.map((v) => (
           <Link key={v.key} href={qs({ view: v.key })} role="tab" aria-selected={view === v.key}
-            className={`flex-1 whitespace-nowrap rounded-lg px-3 py-1.5 text-center text-sm font-medium ${view === v.key ? "bg-white shadow-sm" : "text-slate-600"}`}>
+            className={`flex-1 whitespace-nowrap rounded-full px-3 py-2 text-center text-sm font-semibold ${view === v.key ? "bg-brand-600 text-white" : "text-slate-600"}`}>
             {v.label}
           </Link>
         ))}
@@ -72,7 +72,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
           icon={view === "history" ? "📜" : "✨"}
           title={view === "history" ? "No completed tasks yet" : view === "mine" ? "Nothing on your plate" : "No upcoming tasks"}
           body={view === "history" ? "Finished chores show up here so everyone can see who's been pitching in." : "Add a chore or errand and it'll show up here."}
-          action={view !== "history" ? <LinkButton href="/tasks/new">Add a task</LinkButton> : undefined}
+          action={view !== "history" ? <LinkButton href="/tasks/new">Add a chore</LinkButton> : undefined}
         />
       ) : (
         groups.filter((g) => g.items.length).map((g) => (

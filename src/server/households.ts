@@ -1,8 +1,11 @@
 import crypto from "node:crypto";
 import { z } from "zod";
 import { prisma } from "./db";
+import { netBalances } from "./expenses";
+import { formatCents } from "@/lib/money";
 import { activeMembers, requireMember, requireOwner } from "./access";
 import { AppError, invalid } from "./errors";
+import { leaveAndRelease } from "./members";
 import { isValidTimezone } from "@/lib/time";
 
 const householdSchema = z.object({
@@ -102,7 +105,7 @@ export async function acceptInvitation(userId: string, codeRaw: string) {
     });
     if (existing && !existing.leftAt) throw new AppError("You're already in this household", "CONFLICT");
     if (existing) {
-      await tx.membership.update({ where: { id: existing.id }, data: { leftAt: null, joinedAt: new Date() } });
+      await tx.membership.update({ where: { id: existing.id }, data: { leftAt: null, joinedAt: new Date(), role: "MEMBER" } });
     } else {
       await tx.membership.create({ data: { householdId: inv.householdId, userId, role: "MEMBER" } });
     }
@@ -116,7 +119,7 @@ export async function acceptInvitation(userId: string, codeRaw: string) {
   });
 }
 
-export async function leaveHousehold(userId: string, householdId: string) {
+export async function leaveHousehold(userId: string, householdId: string, opts: { acknowledgeBalance?: boolean } = {}) {
   const m = await requireMember(userId, householdId);
   if (m.role === "OWNER") {
     const otherOwners = await prisma.membership.count({
@@ -125,5 +128,27 @@ export async function leaveHousehold(userId: string, householdId: string) {
     const others = await prisma.membership.count({ where: { householdId, leftAt: null, userId: { not: userId } } });
     if (others > 0 && otherOwners === 0) throw invalid("Make another roommate an owner before leaving");
   }
-  await prisma.membership.update({ where: { id: m.id }, data: { leftAt: new Date() } });
+  if (!opts.acknowledgeBalance) {
+    const net = await netBalances(prisma, householdId);
+    const cents = net.get(userId) ?? 0;
+    if (cents !== 0) {
+      const amount = formatCents(Math.abs(cents), m.household.currency);
+      throw invalid(cents < 0 ? `You still owe ${amount}. Settle up first, or confirm you're leaving with a balance.` : `You're still owed ${amount}. Settle up first, or confirm you're leaving with a balance.`);
+    }
+  }
+  await leaveAndRelease(userId, householdId);
+}
+
+const rulesSchema = z.object({
+  rules: z.string().trim().max(2000, "Keep house rules under 2,000 characters").optional().nullable().transform((v) => v || null),
+  quietStartMin: z.number().int().min(0).max(1439).nullable(),
+  quietEndMin: z.number().int().min(0).max(1439).nullable(),
+}).refine((v) => (v.quietStartMin === null) === (v.quietEndMin === null), { message: "Set both a start and an end for quiet hours, or neither" })
+  .refine((v) => v.quietStartMin === null || v.quietStartMin !== v.quietEndMin, { message: "Quiet hours can't start and end at the same time" });
+
+/** House rules and quiet hours. Owners edit; every member can read them on the Household page. */
+export async function updateHouseRules(userId: string, householdId: string, input: unknown) {
+  await requireOwner(userId, householdId);
+  const data = rulesSchema.parse(input);
+  return prisma.household.update({ where: { id: householdId }, data, select: { rules: true, quietStartMin: true, quietEndMin: true } });
 }

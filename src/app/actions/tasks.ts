@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import {
   archiveTask, assignOccurrence, completeOccurrence, createTask, reopenOccurrence,
-  rescheduleOccurrence, skipOccurrence, updateTask, quickAddTask,
+  rescheduleOccurrence, skipOccurrence, updateTask, quickAddTask, nudgeOccurrence,
 } from "@/server/tasks";
 import { requireHousehold, requireUser } from "@/server/session";
 import { toActionError, type ActionState } from "@/server/action";
@@ -129,6 +129,17 @@ export async function rescheduleAction(_: ActionState, fd: FormData): Promise<Ac
     await rescheduleOccurrence(user.id, String(fd.get("occurrenceId")), due);
     refresh();
     return { ok: true, message: "Rescheduled" };
+  } catch (e) {
+    return toActionError(e);
+  }
+}
+
+export async function nudgeAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const user = await requireUser();
+    const r = await nudgeOccurrence(user.id, String(fd.get("occurrenceId")));
+    const first = r.assigneeName.split(" ")[0];
+    return { ok: true, message: r.sent ? `Nudged ${first}` : `${first} was already nudged today` };
   } catch (e) {
     return toActionError(e);
   }

@@ -102,8 +102,25 @@ function fmt(t: number, tz: string) {
  *     where workload = minutes already planned this run + half of recently completed minutes.
  *  4. Nothing is changed until a person accepts the proposal.
  */
-export function proposeSchedule(people: PersonInput[], tasks: TaskInput[], opts: { from: number; to: number; householdTz: string }): Proposal[] {
-  const free = new Map(people.map((p) => [p.id, freeIntervals(p, opts.from, opts.to)]));
+export type QuietHours = { startMin: number; endMin: number } | null;
+
+/** The household's quiet-hours windows between `from` and `to`, in household time. A window may wrap past midnight. */
+export function quietIntervals(quiet: QuietHours, from: number, to: number, tz: string): Interval[] {
+  if (!quiet || quiet.startMin === quiet.endMin) return [];
+  const out: Interval[] = [];
+  let day = DateTime.fromMillis(from, { zone: tz }).startOf("day").minus({ days: 1 });
+  while (day.toMillis() < to) {
+    const start = day.plus({ minutes: quiet.startMin });
+    const end = quiet.endMin > quiet.startMin ? day.plus({ minutes: quiet.endMin }) : day.plus({ days: 1, minutes: quiet.endMin });
+    if (end.toMillis() > from && start.toMillis() < to) out.push({ start: start.toMillis(), end: end.toMillis() });
+    day = day.plus({ days: 1 });
+  }
+  return out;
+}
+
+export function proposeSchedule(people: PersonInput[], tasks: TaskInput[], opts: { from: number; to: number; householdTz: string; quiet?: QuietHours }): Proposal[] {
+  const quiet = quietIntervals(opts.quiet ?? null, opts.from, opts.to, opts.householdTz);
+  const free = new Map(people.map((p) => [p.id, subtract(freeIntervals(p, opts.from, opts.to), quiet)]));
   const planned = new Map(people.map((p) => [p.id, 0]));
   const byId = new Map(people.map((p) => [p.id, p]));
   const load = (id: string) => (planned.get(id) ?? 0) + Math.round((byId.get(id)?.recentMinutes ?? 0) / 2);

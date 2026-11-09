@@ -3,11 +3,20 @@ import { prisma } from "./db";
 import { activeMembers, assertAllMembers, requireMember } from "./access";
 import { invalid, notFound } from "./errors";
 import { splitEqually } from "@/lib/money";
+import { allocateByWeights, itemizedSplit } from "@/lib/split";
 import { deleteObject, putReceipt, readObject } from "./storage";
 
 export const EXPENSE_CATEGORIES = ["groceries", "household supplies", "rent", "utilities", "internet", "food & dining", "furniture", "other"] as const;
 
 const dateStr = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a date");
+
+const itemSchema = z.object({
+  name: z.string().trim().min(1, "Name each item").max(80),
+  amountCents: z.number().int().positive("Each item needs an amount"),
+  userIds: z.array(z.string()).min(1, "Pick who shares each item"),
+});
+
+export const SPLIT_METHODS = ["EQUAL", "CUSTOM", "SHARES", "PERCENT", "ITEMIZED"] as const;
 
 export const expenseInputSchema = z
   .object({
@@ -16,37 +25,83 @@ export const expenseInputSchema = z
     date: dateStr,
     description: z.string().trim().min(1, "Add a short description").max(140),
     category: z.string().trim().min(1).max(40).default("groceries"),
-    splitMethod: z.enum(["EQUAL", "CUSTOM"]),
+    splitMethod: z.enum(SPLIT_METHODS),
     participants: z
-      .array(z.object({ userId: z.string(), amountCents: z.number().int().nonnegative().optional() }))
-      .min(1, "Pick at least one person to split with"),
+      .array(z.object({
+        userId: z.string(),
+        amountCents: z.number().int().nonnegative().optional(),
+        weight: z.number().int().nonnegative().max(1_000_000).optional(),
+      }))
+      .default([]),
+    items: z.array(itemSchema).max(100).default([]),
     shoppingItemIds: z.array(z.string()).default([]),
   })
+  .transform((v) => (v.splitMethod === "ITEMIZED"
+    // Itemized: the people are whoever appears on an item.
+    ? { ...v, participants: [...new Set(v.items.flatMap((i) => i.userIds))].map((userId) => ({ userId } as { userId: string; amountCents?: number; weight?: number })) }
+    : v))
   .superRefine((v, ctx) => {
+    const issue = (message: string, path = "participants") => ctx.addIssue({ code: "custom", path: [path], message });
+    const money = (c: number) => `$${(c / 100).toFixed(2)}`;
+    if (v.participants.length === 0) return issue(v.splitMethod === "ITEMIZED" ? "Add at least one item" : "Pick at least one person to split with");
     const ids = v.participants.map((p) => p.userId);
-    if (new Set(ids).size !== ids.length) ctx.addIssue({ code: "custom", path: ["participants"], message: "Each person can only appear once" });
-    if (v.splitMethod === "CUSTOM") {
-      if (v.participants.some((p) => p.amountCents === undefined))
-        ctx.addIssue({ code: "custom", path: ["participants"], message: "Enter an amount for each person" });
-      const sum = v.participants.reduce((s, p) => s + (p.amountCents ?? 0), 0);
-      if (sum !== v.amountCents)
-        ctx.addIssue({
-          code: "custom", path: ["participants"],
-          message: `Split amounts add up to $${(sum / 100).toFixed(2)} but the total is $${(v.amountCents / 100).toFixed(2)}`,
-        });
+    if (new Set(ids).size !== ids.length) issue("Each person can only appear once");
+    switch (v.splitMethod) {
+      case "CUSTOM": {
+        if (v.participants.some((p) => p.amountCents === undefined)) issue("Enter an amount for each person");
+        const sum = v.participants.reduce((s, p) => s + (p.amountCents ?? 0), 0);
+        if (sum !== v.amountCents) issue(`Split amounts add up to ${money(sum)} but the total is ${money(v.amountCents)}`);
+        break;
+      }
+      case "SHARES": {
+        if (v.participants.some((p) => p.weight === undefined)) issue("Enter shares for each person");
+        else if (!v.participants.some((p) => (p.weight ?? 0) > 0)) issue("Give at least one person a share");
+        break;
+      }
+      case "PERCENT": {
+        if (v.participants.some((p) => p.weight === undefined)) { issue("Enter a percent for each person"); break; }
+        const sum = v.participants.reduce((s, p) => s + (p.weight ?? 0), 0);
+        if (sum !== 10_000) issue(`Percents add up to ${Number((sum / 100).toFixed(2))}%, not 100%`);
+        break;
+      }
+      case "ITEMIZED": {
+        if (v.items.some((i) => new Set(i.userIds).size !== i.userIds.length)) issue("Each person can only be on an item once", "items");
+        const sum = v.items.reduce((s, i) => s + i.amountCents, 0);
+        if (sum > v.amountCents) issue(`Items add up to ${money(sum)}, more than the total of ${money(v.amountCents)}`, "items");
+        break;
+      }
     }
   });
 
 export type ExpenseInput = z.input<typeof expenseInputSchema>;
+type ExpenseData = z.output<typeof expenseInputSchema>;
 
-/** Compute the per-person split rows for a validated expense. Always sums to amountCents. */
-export function computeSplits(v: z.output<typeof expenseInputSchema>) {
-  if (v.splitMethod === "EQUAL") {
-    const parts = splitEqually(v.amountCents, v.participants.length);
-    return v.participants.map((p, i) => ({ userId: p.userId, amountCents: parts[i] }));
+/**
+ * Compute the per-person split rows for a validated expense. Always sums to amountCents.
+ * People whose share comes to $0 get no row.
+ */
+export function computeSplits(v: ExpenseData): { userId: string; amountCents: number; weight?: number }[] {
+  switch (v.splitMethod) {
+    case "EQUAL": {
+      const parts = splitEqually(v.amountCents, v.participants.length);
+      return v.participants.map((p, i) => ({ userId: p.userId, amountCents: parts[i] }));
+    }
+    case "CUSTOM":
+      return v.participants.filter((p) => (p.amountCents ?? 0) > 0).map((p) => ({ userId: p.userId, amountCents: p.amountCents! }));
+    case "SHARES":
+    case "PERCENT": {
+      const parts = allocateByWeights(v.amountCents, v.participants.map((p) => p.weight ?? 0));
+      return v.participants.map((p, i) => ({ userId: p.userId, amountCents: parts[i], weight: p.weight })).filter((r) => r.amountCents > 0);
+    }
+    case "ITEMIZED": {
+      const per = itemizedSplit(v.amountCents, v.items);
+      return [...per.entries()].map(([userId, amountCents]) => ({ userId, amountCents })).filter((r) => r.amountCents > 0);
+    }
   }
-  return v.participants.filter((p) => (p.amountCents ?? 0) > 0).map((p) => ({ userId: p.userId, amountCents: p.amountCents! }));
 }
+
+const itemRows = (v: ExpenseData) =>
+  v.splitMethod === "ITEMIZED" ? v.items.map((i, position) => ({ position, name: i.name, amountCents: i.amountCents, userIds: i.userIds })) : [];
 
 export async function createExpense(userId: string, householdId: string, input: unknown) {
   await requireMember(userId, householdId);
@@ -72,6 +127,7 @@ export async function createExpense(userId: string, householdId: string, input: 
         splitMethod: data.splitMethod,
         createdById: userId,
         splits: { create: splits },
+        items: { create: itemRows(data) },
       },
       include: { splits: true },
     });
@@ -86,8 +142,33 @@ export async function createExpense(userId: string, householdId: string, input: 
   });
 }
 
+/**
+ * Edit an expense: amount, payer, date, description, category and splits. Splits are
+ * replaced atomically and validated exactly like a new expense. Linked shopping items stay linked.
+ */
+export async function updateExpense(userId: string, expenseId: string, input: unknown) {
+  const existing = await loadExpense(userId, expenseId);
+  const data = expenseInputSchema.parse({ ...(input as object), shoppingItemIds: [] });
+  await assertAllMembers(existing.householdId, [data.payerId, ...data.participants.map((p) => p.userId)]);
+  const splits = computeSplits(data);
+  return prisma.$transaction(async (tx) => {
+    await tx.expenseSplit.deleteMany({ where: { expenseId } });
+    await tx.expenseItem.deleteMany({ where: { expenseId } });
+    return tx.expense.update({
+      where: { id: expenseId },
+      data: {
+        payerId: data.payerId, amountCents: data.amountCents, date: data.date, description: data.description,
+        category: data.category, splitMethod: data.splitMethod, editedAt: new Date(), editedById: userId,
+        splits: { create: splits },
+        items: { create: itemRows(data) },
+      },
+      include: { splits: true },
+    });
+  });
+}
+
 async function loadExpense(userId: string, expenseId: string) {
-  const e = await prisma.expense.findUnique({ where: { id: expenseId }, include: { splits: true, shoppingItems: true } });
+  const e = await prisma.expense.findUnique({ where: { id: expenseId }, include: { splits: true, shoppingItems: true, items: { orderBy: { position: "asc" } } } });
   if (!e || e.deletedAt) throw notFound("Expense");
   await requireMember(userId, e.householdId);
   return e;
@@ -155,11 +236,24 @@ export async function deleteSettlement(userId: string, settlementId: string) {
  */
 export async function computeBalances(userId: string, householdId: string) {
   await requireMember(userId, householdId);
-  const [expenses, settlements, members] = await Promise.all([
-    prisma.expense.findMany({ where: { householdId, deletedAt: null }, include: { splits: true } }),
-    prisma.settlement.findMany({ where: { householdId } }),
+  const [net, members] = await Promise.all([
+    netBalances(prisma, householdId),
     // Include former members too: they can still owe or be owed.
     prisma.membership.findMany({ where: { householdId }, include: { user: { select: { id: true, name: true } } } }),
+  ]);
+  const names = new Map(members.map((m) => [m.userId, m.user.name]));
+  const balances = [...net.entries()].map(([id, cents]) => ({ userId: id, name: names.get(id) ?? "Unknown", cents, active: !members.find((m) => m.userId === id)?.leftAt }));
+  return { balances, suggestions: simplifyDebts(balances) };
+}
+
+type Db = Pick<typeof prisma, "expense" | "settlement" | "membership">;
+
+/** Net cents per person (everyone who was ever a member). No access check: callers do that. */
+export async function netBalances(db: Db, householdId: string) {
+  const [expenses, settlements, members] = await Promise.all([
+    db.expense.findMany({ where: { householdId, deletedAt: null }, include: { splits: true } }),
+    db.settlement.findMany({ where: { householdId } }),
+    db.membership.findMany({ where: { householdId }, select: { userId: true } }),
   ]);
   const net = new Map<string, number>(members.map((m) => [m.userId, 0]));
   const add = (id: string, v: number) => net.set(id, (net.get(id) ?? 0) + v);
@@ -171,9 +265,7 @@ export async function computeBalances(userId: string, householdId: string) {
     add(s.fromUserId, s.amountCents);
     add(s.toUserId, -s.amountCents);
   }
-  const names = new Map(members.map((m) => [m.userId, m.user.name]));
-  const balances = [...net.entries()].map(([id, cents]) => ({ userId: id, name: names.get(id) ?? "Unknown", cents, active: !members.find((m) => m.userId === id)?.leftAt }));
-  return { balances, suggestions: simplifyDebts(balances) };
+  return net;
 }
 
 /** Greedy debt simplification: at most n−1 payments that zero everyone out. Deterministic. */

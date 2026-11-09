@@ -10,6 +10,9 @@ import { deleteTaskEvent, fetchBusy, googleConfigured, upsertTaskEvent } from ".
 
 export const RECENT_DAYS = 14;
 
+const quietOf = (h: { quietStartMin: number | null; quietEndMin: number | null }) =>
+  h.quietStartMin != null && h.quietEndMin != null ? { startMin: h.quietStartMin, endMin: h.quietEndMin } : null;
+
 export function weekBounds(tz: string, offset = 0) {
   const start = DateTime.now().setZone(tz).startOf("week").plus({ weeks: offset });
   return { start: start.toJSDate(), end: start.plus({ weeks: 1 }).toJSDate(), label: `${start.toFormat("LLL d")} – ${start.plus({ days: 6 }).toFormat("LLL d")}` };
@@ -118,7 +121,7 @@ export async function buildProposals(userId: string, householdId: string, range:
   const proposals = proposeSchedule(
     people,
     occs.map((o) => ({ occurrenceId: o.id, title: o.definition.title, minutes: o.definition.estimatedMinutes, dueAt: o.dueAt.getTime(), assigneeId: o.assigneeId, eligible: o.definition.eligibleUserIds })),
-    { from: from.getTime(), to: range.to.getTime(), householdTz: m.household.timezone },
+    { from: from.getTime(), to: range.to.getTime(), householdTz: m.household.timezone, quiet: quietOf(m.household) },
   );
   return { proposals, notes };
 }
@@ -139,7 +142,7 @@ export async function buildMissedProposals(userId: string, householdId: string) 
   const proposals = proposeSchedule(
     people,
     occs.map((o) => ({ occurrenceId: o.id, title: o.definition.title, minutes: o.definition.estimatedMinutes, dueAt: to.getTime(), assigneeId: o.assigneeId, eligible: o.definition.eligibleUserIds })),
-    { from: now.getTime(), to: to.getTime(), householdTz: m.household.timezone },
+    { from: now.getTime(), to: to.getTime(), householdTz: m.household.timezone, quiet: quietOf(m.household) },
   );
   return { proposals, notes };
 }
@@ -229,11 +232,16 @@ export async function syncOccurrenceToGoogle(userId: string, occurrenceId: strin
   return upsertTaskEvent(conn, { id: occ.id, title: occ.definition.title, start: occ.scheduledStart, end: occ.scheduledEnd, householdName: occ.household.name });
 }
 
+// ---- Swap requests ----
+
+const OPEN_SWAP = "PENDING" as const;
+
 /**
- * Swap two pending tasks between their assignees. The person asking must be one of the two
- * assignees, so nobody can rearrange two other people's commitments. The other person is notified.
+ * Ask a roommate to trade tasks. Nothing changes hands until they accept.
+ * The requester must be the assignee of the task they're offering, so nobody can
+ * rearrange two other people's commitments.
  */
-export async function swapOccurrences(userId: string, mineId: string, theirsId: string) {
+export async function requestSwap(userId: string, mineId: string, theirsId: string, message?: string | null) {
   const [a, b] = await Promise.all([
     prisma.taskOccurrence.findUnique({ where: { id: mineId }, include: { definition: true } }),
     prisma.taskOccurrence.findUnique({ where: { id: theirsId }, include: { definition: true } }),
@@ -242,19 +250,129 @@ export async function swapOccurrences(userId: string, mineId: string, theirsId: 
   if (a.householdId !== b.householdId) throw invalid("Tasks must be in the same household");
   await requireMember(userId, a.householdId);
   if (a.status !== "PENDING" || b.status !== "PENDING") throw invalid("Both tasks must still be pending");
-  if (a.assigneeId !== userId) throw forbidden("You can only swap a task that's assigned to you");
+  if (a.assigneeId !== userId) throw forbidden("You can only offer a task that's assigned to you");
   if (!b.assigneeId || b.assigneeId === userId) throw invalid("Pick a task assigned to another roommate");
-  const other = b.assigneeId;
-  await prisma.$transaction([
-    // Planned slots belonged to the old assignee's free time, so they're cleared.
-    prisma.taskOccurrence.update({ where: { id: a.id }, data: { assigneeId: other, manuallyChanged: true, scheduledStart: null, scheduledEnd: null } }),
-    prisma.taskOccurrence.update({ where: { id: b.id }, data: { assigneeId: userId, manuallyChanged: true, scheduledStart: null, scheduledEnd: null } }),
-    prisma.taskEvent.create({ data: { occurrenceId: a.id, actorId: userId, type: "swapped", data: { from: userId, to: other, with: b.id } } }),
-    prisma.taskEvent.create({ data: { occurrenceId: b.id, actorId: userId, type: "swapped", data: { from: other, to: userId, with: a.id } } }),
-  ]);
-  await notify({
-    userId: other, householdId: a.householdId, type: "task_swapped",
-    title: `Swap: you now have “${a.definition.title}” instead of “${b.definition.title}”`,
-    link: `/tasks/${a.definitionId}`, dedupeKey: `swap:${a.id}:${b.id}:${Date.now()}`,
+  const dupe = await prisma.swapRequest.findFirst({
+    where: { status: OPEN_SWAP, fromOccurrenceId: a.id, toOccurrenceId: b.id },
   });
+  if (dupe) throw new AppError("You've already asked to swap these", "CONFLICT");
+  const req = await prisma.swapRequest.create({
+    data: {
+      householdId: a.householdId, fromUserId: userId, toUserId: b.assigneeId,
+      fromOccurrenceId: a.id, toOccurrenceId: b.id, message: message?.trim().slice(0, 200) || null,
+    },
+  });
+  const me = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { name: true } });
+  await notify({
+    userId: b.assigneeId, householdId: a.householdId, type: "swap_requested",
+    title: `${me.name.split(" ")[0]} wants to swap: their “${a.definition.title}” for your “${b.definition.title}”`,
+    body: req.message ?? undefined,
+    link: "/planner#swaps", dedupeKey: `swap_req:${req.id}`,
+  });
+  return req;
+}
+
+async function loadSwap(userId: string, requestId: string) {
+  const r = await prisma.swapRequest.findUnique({
+    where: { id: requestId },
+    include: { fromOccurrence: { include: { definition: true } }, toOccurrence: { include: { definition: true } } },
+  });
+  if (!r) throw notFound("Swap request");
+  await requireMember(userId, r.householdId);
+  return r;
+}
+
+/**
+ * Accept or decline. Accepting is race-safe: the request flips from PENDING exactly
+ * once, and the trade only happens if both tasks are still pending and still owned
+ * by the same two people. Otherwise the request is marked EXPIRED and nothing moves.
+ */
+export async function respondToSwap(userId: string, requestId: string, accept: boolean) {
+  const r = await loadSwap(userId, requestId);
+  if (r.toUserId !== userId) throw forbidden("Only the roommate being asked can answer this");
+  if (r.status !== OPEN_SWAP) throw invalid("This request was already answered");
+
+  if (!accept) {
+    const res = await prisma.swapRequest.updateMany({ where: { id: r.id, status: OPEN_SWAP }, data: { status: "DECLINED", respondedAt: new Date() } });
+    if (res.count !== 1) throw invalid("This request was already answered");
+    await notify({
+      userId: r.fromUserId, householdId: r.householdId, type: "swap_declined",
+      title: `Swap declined: you're still on “${r.fromOccurrence.definition.title}”`,
+      link: "/planner#swaps", dedupeKey: `swap_res:${r.id}`,
+    });
+    return "DECLINED" as const;
+  }
+
+  const outcome = await prisma.$transaction(async (tx) => {
+    const claimed = await tx.swapRequest.updateMany({ where: { id: r.id, status: OPEN_SWAP }, data: { status: "ACCEPTED", respondedAt: new Date() } });
+    if (claimed.count !== 1) return "ALREADY" as const;
+    const moveA = await tx.taskOccurrence.updateMany({
+      where: { id: r.fromOccurrenceId, status: "PENDING", assigneeId: r.fromUserId },
+      data: { assigneeId: r.toUserId, manuallyChanged: true, scheduledStart: null, scheduledEnd: null },
+    });
+    const moveB = await tx.taskOccurrence.updateMany({
+      where: { id: r.toOccurrenceId, status: "PENDING", assigneeId: r.toUserId },
+      data: { assigneeId: r.fromUserId, manuallyChanged: true, scheduledStart: null, scheduledEnd: null },
+    });
+    if (moveA.count !== 1 || moveB.count !== 1) {
+      // Throwing rolls back the partial swap and the ACCEPTED flip.
+      throw new AppError("STALE", "CONFLICT");
+    }
+    await tx.taskEvent.createMany({
+      data: [
+        { occurrenceId: r.fromOccurrenceId, actorId: userId, type: "swapped", data: { from: r.fromUserId, to: r.toUserId, requestId: r.id } },
+        { occurrenceId: r.toOccurrenceId, actorId: userId, type: "swapped", data: { from: r.toUserId, to: r.fromUserId, requestId: r.id } },
+      ],
+    });
+    // Any other open requests involving these two tasks no longer make sense.
+    await tx.swapRequest.updateMany({
+      where: {
+        id: { not: r.id }, status: OPEN_SWAP,
+        OR: [
+          { fromOccurrenceId: { in: [r.fromOccurrenceId, r.toOccurrenceId] } },
+          { toOccurrenceId: { in: [r.fromOccurrenceId, r.toOccurrenceId] } },
+        ],
+      },
+      data: { status: "EXPIRED", respondedAt: new Date() },
+    });
+    return "ACCEPTED" as const;
+  }).catch(async (e) => {
+    if (e instanceof AppError && e.message === "STALE") {
+      await prisma.swapRequest.updateMany({ where: { id: r.id, status: OPEN_SWAP }, data: { status: "EXPIRED", respondedAt: new Date() } });
+      throw invalid("One of these tasks changed (done, skipped, or reassigned), so the swap no longer applies");
+    }
+    throw e;
+  });
+  if (outcome === "ALREADY") throw invalid("This request was already answered");
+  await notify({
+    userId: r.fromUserId, householdId: r.householdId, type: "swap_accepted",
+    title: `Swap accepted: you now have “${r.toOccurrence.definition.title}” instead of “${r.fromOccurrence.definition.title}”`,
+    link: `/tasks/${r.toOccurrence.definitionId}`, dedupeKey: `swap_res:${r.id}`,
+  });
+  return "ACCEPTED" as const;
+}
+
+export async function cancelSwap(userId: string, requestId: string) {
+  const r = await loadSwap(userId, requestId);
+  if (r.fromUserId !== userId) throw forbidden("Only the person who asked can cancel");
+  const res = await prisma.swapRequest.updateMany({ where: { id: r.id, status: OPEN_SWAP }, data: { status: "CANCELLED", respondedAt: new Date() } });
+  if (res.count !== 1) throw invalid("This request was already answered");
+}
+
+/** Open requests for the current user, with stale ones expired on read. */
+export async function listSwapRequests(userId: string, householdId: string) {
+  await requireMember(userId, householdId);
+  const open = await prisma.swapRequest.findMany({
+    where: { householdId, status: OPEN_SWAP, OR: [{ fromUserId: userId }, { toUserId: userId }] },
+    include: { fromOccurrence: { include: { definition: true } }, toOccurrence: { include: { definition: true } } },
+    orderBy: { createdAt: "desc" },
+  });
+  const stale = open.filter((r) =>
+    r.fromOccurrence.status !== "PENDING" || r.toOccurrence.status !== "PENDING" ||
+    r.fromOccurrence.assigneeId !== r.fromUserId || r.toOccurrence.assigneeId !== r.toUserId);
+  if (stale.length) {
+    await prisma.swapRequest.updateMany({ where: { id: { in: stale.map((r) => r.id) }, status: OPEN_SWAP }, data: { status: "EXPIRED", respondedAt: new Date() } });
+  }
+  const live = open.filter((r) => !stale.includes(r));
+  return { incoming: live.filter((r) => r.toUserId === userId), outgoing: live.filter((r) => r.fromUserId === userId) };
 }

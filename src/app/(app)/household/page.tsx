@@ -6,7 +6,11 @@ import { prisma } from "@/server/db";
 import { COMMON_TIMEZONES, minutesToHHMM } from "@/lib/time";
 import { Avatar, Badge, PageHeader, Section } from "@/components/ui";
 import { CopyButton } from "@/components/copy-button";
-import { HouseholdForm, InviteForm, LeaveForm, PreferencesForm } from "@/components/settings-forms";
+import { MemberActions } from "@/components/member-actions";
+import { openTaskCounts } from "@/server/members";
+import { moveOutPlan } from "@/server/moveout";
+import { HouseRulesForm, HouseholdForm, InviteForm, LeaveForm, PayHandlesForm, PreferencesForm } from "@/components/settings-forms";
+import { getPayHandles } from "@/server/payments";
 import { revokeInviteAction } from "@/app/actions/households";
 import { logoutAction } from "@/app/actions/auth";
 import { googleConfigured } from "@/server/calendar/google";
@@ -14,14 +18,19 @@ import { disconnectCalendarAction } from "@/app/actions/planner";
 
 export const metadata = { title: "Household & settings" };
 
-export default async function HouseholdPage({ searchParams }: { searchParams: Promise<{ calendar?: string }> }) {
+export default async function HouseholdPage({ searchParams }: { searchParams: Promise<{ calendar?: string; member?: string; released?: string }> }) {
   const { user, household } = await requireHousehold();
   const sp = await searchParams;
-  const [{ members, role }, invites, connections] = await Promise.all([
+  const [{ members, role }, invites, connections, openCounts, myPlan, handleMap] = await Promise.all([
     getHouseholdOverview(user.id, household.id),
     listInvitations(user.id, household.id),
     prisma.calendarConnection.findMany({ where: { userId: user.id }, select: { id: true, provider: true, status: true, accountEmail: true, lastSyncAt: true, lastError: true } }),
+    openTaskCounts(user.id, household.id),
+    moveOutPlan(user.id, household.id, user.id),
+    getPayHandles([user.id]),
   ]);
+  const released = Number(sp.released ?? 0);
+  const myHandles = handleMap.get(user.id) ?? { venmoHandle: null, paypalHandle: null, cashtag: null };
   const appUrl = process.env.APP_URL ?? "http://localhost:3000";
   const google = connections.find((c) => c.provider === "GOOGLE");
 
@@ -30,18 +39,32 @@ export default async function HouseholdPage({ searchParams }: { searchParams: Pr
       <PageHeader title="Household" subtitle={household.name} />
 
       <Section title={`Roommates · ${members.length}`}>
-        <ul className="card divide-y divide-slate-100">
-          {members.map((m) => (
-            <li key={m.id} className="flex items-center gap-3 px-4 py-3">
-              <Avatar id={m.id} name={m.name} />
-              <div className="flex-1">
-                <p className="font-medium">{m.name}{m.id === user.id && " (you)"}</p>
-                <p className="text-xs text-muted">{m.email}</p>
-              </div>
-              {m.role === "OWNER" && <Badge tone="blue">Owner</Badge>}
-            </li>
-          ))}
-        </ul>
+        <div id="roommates" className="card divide-y divide-slate-100">
+          {sp.member === "removed" && (
+            <p role="status" className="bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
+              Roommate removed.{released > 0 && <> {released} open {released === 1 ? "task is" : "tasks are"} now unassigned. <Link href="/tasks?view=open" className="font-semibold underline">Pick them up →</Link></>}
+            </p>
+          )}
+          <ul className="divide-y divide-slate-100">
+            {members.map((m) => (
+              <li key={m.id} className="px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <Avatar id={m.id} name={m.name} />
+                  <div className="flex-1">
+                    <p className="font-medium">{m.name}{m.id === user.id && " (you)"}</p>
+                    <p className="text-xs text-muted">{m.email}</p>
+                  </div>
+                  {m.role === "OWNER" && <Badge tone="blue">Owner</Badge>}
+                </div>
+                {role === "OWNER" && (members.length > 1 || m.id !== user.id) && (
+                  <div className="mt-2 pl-12">
+                    <MemberActions member={{ id: m.id, name: m.name, role: m.role }} openTasks={openCounts.get(m.id) ?? 0} isSelf={m.id === user.id} />
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
       </Section>
 
       <Section title="Invite roommates">
@@ -69,6 +92,21 @@ export default async function HouseholdPage({ searchParams }: { searchParams: Pr
       <Section title="Household settings">
         <div className="card p-4">
           <HouseholdForm name={household.name} timezone={household.timezone} timezones={COMMON_TIMEZONES} canEdit={role === "OWNER"} />
+        </div>
+      </Section>
+
+      <Section title="House rules">
+        <div id="rules" className="card p-4">
+          {role === "OWNER" ? (
+            <HouseRulesForm rules={household.rules ?? ""}
+              quietStart={household.quietStartMin != null ? minutesToHHMM(household.quietStartMin) : ""}
+              quietEnd={household.quietEndMin != null ? minutesToHHMM(household.quietEndMin) : ""} />
+          ) : (
+            <div className="space-y-3 text-sm">
+              {household.rules ? <p className="whitespace-pre-line">{household.rules}</p> : <p className="text-muted">No house rules yet. The owner can add some.</p>}
+              <p className="text-muted">{household.quietStartMin != null && household.quietEndMin != null ? `Quiet hours: ${minutesToHHMM(household.quietStartMin!)} to ${minutesToHHMM(household.quietEndMin!)}. The planner won't suggest chores then.` : "No quiet hours set."}</p>
+            </div>
+          )}
         </div>
       </Section>
 
@@ -110,6 +148,12 @@ export default async function HouseholdPage({ searchParams }: { searchParams: Pr
         </div>
       </Section>
 
+      <Section title="Get paid back">
+        <div id="pay" className="card p-4">
+          <PayHandlesForm handles={myHandles} />
+        </div>
+      </Section>
+
       <Section title="Your preferences">
         <div className="card p-4">
           <PreferencesForm
@@ -123,7 +167,7 @@ export default async function HouseholdPage({ searchParams }: { searchParams: Pr
       <div className="space-y-3">
         <Link href="/onboarding" className="btn-secondary w-full">Create or join another household</Link>
         <form action={logoutAction}><button className="btn-secondary w-full">Log out</button></form>
-        <LeaveForm />
+        <LeaveForm openTasks={openCounts.get(user.id) ?? 0} viewerId={user.id} plan={{ userId: user.id, cents: myPlan.cents, currency: household.currency, payments: myPlan.payments }} />
       </div>
     </>
   );
