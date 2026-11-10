@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/server/session";
 import { demoEnabled } from "@/server/demo";
 import { startDemoAction } from "@/app/actions/demo";
 import { CategoryIcon } from "@/components/task-row";
+import { SubmitButton } from "@/components/forms";
 
 const FEATURES: [string, string, string][] = [
   ["cleaning", "Chores that take turns", "Daily and weekly chores rotate between roommates, with history and reminders, so nobody has to be the nag."],
@@ -37,7 +38,7 @@ export default async function Landing() {
               <div className="mt-7 flex flex-wrap items-center gap-3">
                 <Link href="/signup" className="btn-peach px-6 text-base">Get started free</Link>
                 {demoEnabled() && (
-                  <form action={startDemoAction}><button className="btn-secondary px-5 text-base">Try the demo house</button></form>
+                  <form action={startDemoAction}><SubmitButton className="btn-secondary px-5 text-base" pendingText="Setting up the demo house…">Try the demo house</SubmitButton></form>
                 )}
               </div>
             </div>

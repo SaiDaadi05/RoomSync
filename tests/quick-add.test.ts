@@ -24,6 +24,13 @@ describe("parseQuickAdd", () => {
     expect(p("trash bags to the list")).toMatchObject({ kind: "shopping", name: "Trash bags" });
   });
 
+  it("treats a dated 'buy …' as an errand, not a list item with the day in its name", () => {
+    expect(p("buy light bulbs tomorrow")).toMatchObject({ kind: "task", title: "Buy light bulbs", startsOn: "2026-11-10" });
+    expect(p("get the package fri @jordan")).toMatchObject({ kind: "task", title: "Get the package", startsOn: "2026-11-13", assigneeId: "u-jordan" });
+    expect(p("buy batteries")).toMatchObject({ kind: "shopping", name: "Batteries" });
+    expect(p("buy batteries to the list")).toMatchObject({ kind: "shopping", name: "Batteries" });
+  });
+
   it("makes one-off chores from verbs and dates", () => {
     expect(p("unload groceries")).toMatchObject({ kind: "task", title: "Unload groceries", recurrence: "NONE", startsOn: "2026-11-09", dueTime: "20:00", assigneeId: null });
     expect(p("clean the fridge tomorrow at 6pm")).toMatchObject({ kind: "task", title: "Clean the fridge", startsOn: "2026-11-10", dueTime: "18:00", category: "kitchen" });

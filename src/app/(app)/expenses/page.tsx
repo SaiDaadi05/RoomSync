@@ -4,7 +4,7 @@ import { computeBalances, listLedger } from "@/server/expenses";
 import { listBills } from "@/server/bills";
 import { activeMembers } from "@/server/access";
 import { formatCents } from "@/lib/money";
-import { todayIn } from "@/lib/time";
+import { niceDate, todayIn } from "@/lib/time";
 import { Avatar, EmptyState, LinkButton, PageHeader, Section } from "@/components/ui";
 import { SettleForm } from "@/components/settle-form";
 import { getPayHandles } from "@/server/payments";
@@ -36,10 +36,6 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
   return (
     <>
       <PageHeader title="Money" subtitle="Shared costs and who owes whom" action={<LinkButton href="/expenses/new">+ Add a cost</LinkButton>} />
-      <Link href="/expenses/insights" className="card mb-4 flex items-center gap-3 p-4 hover:border-slate-400">
-        <span className="min-w-0 flex-1"><span className="block font-semibold">Spending insights</span><span className="text-sm text-muted">Monthly totals, your share by category, CSV export</span></span>
-        <span className="text-sm font-semibold text-peach-700">Open</span>
-      </Link>
 
       <div className={`card mb-7 p-5 `}>
         <p className="text-sm text-muted">Your balance</p>
@@ -134,10 +130,21 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
       </Section>
 
       <Section title="Record a payment">
-        <div id="settle" className="card p-4">
-          <SettleForm key={`${sp.from}-${sp.to}-${sp.amount}`} members={members} from={sp.from ?? user.id} to={sp.to} amount={sp.amount} today={todayIn(household.timezone)} />
-        </div>
+        <details id="settle" className="card group p-4" open={Boolean(sp.from || sp.to || sp.amount)}>
+          <summary className="cursor-pointer list-none text-sm font-semibold text-brand-700 marker:hidden">
+            <span className="group-open:hidden">Paid someone back outside the app? Record it here</span>
+            <span className="hidden group-open:inline">Record a payment</span>
+          </summary>
+          <div className="mt-3">
+            <SettleForm key={`${sp.from}-${sp.to}-${sp.amount}`} members={members} from={sp.from ?? user.id} to={sp.to} amount={sp.amount} today={todayIn(household.timezone)} />
+          </div>
+        </details>
       </Section>
+
+      <Link href="/expenses/insights" className="card mb-7 flex items-center gap-3 p-4 hover:border-slate-400">
+        <span className="min-w-0 flex-1"><span className="block font-semibold">Spending insights</span><span className="text-sm text-muted">Monthly totals, your share by category, CSV export</span></span>
+        <span className="text-sm font-semibold text-peach-700">Open</span>
+      </Link>
 
       <Section title="Who paid for what">
         {ledger.length === 0 ? (
@@ -152,7 +159,7 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-medium">{entry.expense.description}</p>
                       <p className="text-xs text-muted">
-                        {nameOf(entry.expense.payerId)} paid · {entry.date} · <span className="capitalize">{entry.expense.category}</span>
+                        {nameOf(entry.expense.payerId)} paid · {niceDate(entry.date)} · <span className="capitalize">{entry.expense.category}</span>
                         {entry.expense.receiptKey && " · 📎"}
                       </p>
                     </div>
@@ -171,7 +178,7 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
                   <span aria-hidden className="text-xl">🤝</span>
                   <div className="min-w-0 flex-1">
                     <p className="font-medium">{nameOf(entry.settlement.fromUserId)} paid {nameOf(entry.settlement.toUserId)}</p>
-                    <p className="text-xs text-muted">Recorded payment · {entry.date}{entry.settlement.note && ` · ${entry.settlement.note}`}</p>
+                    <p className="text-xs text-muted">Recorded payment · {niceDate(entry.date)}{entry.settlement.note && ` · ${entry.settlement.note}`}</p>
                   </div>
                   <p className="font-semibold tabular-nums text-slate-600">{formatCents(entry.settlement.amountCents, cur)}</p>
                   <form action={deleteSettlementAction}><input type="hidden" name="id" value={entry.settlement.id} />
