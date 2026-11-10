@@ -29,6 +29,9 @@ export default async function TaskDetail({ params }: { params: Promise<{ id: str
   const now = new Date();
   const upcoming = occurrences.filter((o) => o.status === "PENDING").sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime()).slice(0, 6);
   const history = occurrences.filter((o) => o.status !== "PENDING");
+  // Go back to the tab this chore actually shows up on, so a new "up for grabs" chore isn't missing from "Mine".
+  const next = upcoming[0];
+  const backView = !next ? "all" : next.assigneeId === user.id ? "mine" : !next.assigneeId ? "open" : "all";
   const assignmentText =
     def.assignmentMode === "FIXED" ? `Always ${nameOf(def.assigneeId)}`
       : def.assignmentMode === "ROTATE" ? `Takes turns: ${def.eligibleUserIds.map(nameOf).join(" → ")}`
@@ -36,7 +39,7 @@ export default async function TaskDetail({ params }: { params: Promise<{ id: str
 
   return (
     <>
-      <Link href="/tasks" className="mb-3 inline-block text-sm font-medium text-brand-700">← Tasks</Link>
+      <Link href={`/tasks?view=${backView}`} className="mb-3 inline-block text-sm font-medium text-brand-700">← Chores</Link>
       <div className="card mb-5 p-5">
         <div className="flex items-start justify-between gap-3">
           <div>

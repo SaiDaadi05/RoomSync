@@ -9,7 +9,8 @@ import { Avatar, Badge, EmptyState, PageHeader, Section } from "@/components/ui"
 import { HandoffAnswer, HandoffForm, PlanManually, ProposalsForm, RebalanceSend, SwapAnswer, SwapForm, SyncGoogle, type ProposalView } from "@/components/planner-forms";
 import { fairnessHistory, listMyHandoffs, rebalanceSuggestions } from "@/server/handoffs";
 import { cancelHandoffAction, cancelSwapAction, unscheduleAction } from "@/app/actions/planner";
-import { CATEGORY_EMOJI } from "@/components/task-row";
+import { CategoryIcon } from "@/components/task-row";
+import { Fold } from "@/components/fold";
 import type { Proposal } from "@/lib/scheduling";
 
 export const metadata = { title: "Planner" };
@@ -172,7 +173,6 @@ export default async function PlannerPage({ searchParams }: { searchParams: Prom
       <Section title="Suggested plan">
         {!suggest ? (
           <div className="card flex items-center gap-3 p-4">
-            <span className="text-2xl" aria-hidden>🪄</span>
             <p className="flex-1 text-sm">Find times for this week's unplanned tasks based on everyone's free time, deadlines, and workload.</p>
             <Link href={`/planner?week=${offset}&suggest=1`} className="btn-primary">Suggest</Link>
           </div>
@@ -193,6 +193,28 @@ export default async function PlannerPage({ searchParams }: { searchParams: Prom
         )}
       </Section>
 
+      {(myPending.length > 0 && members.length > 1) && (
+        <Section title="Can't get to something?">
+          <div className="card overflow-hidden">
+            <Fold id="handoff" title="Hand off a task" summary="Ask a roommate to take one of yours">
+            <HandoffForm
+              week={offset}
+              mine={myPending.map((o) => ({ id: o.id, label: `${o.definition.title} (${fmt(o.dueAt)})` }))}
+              roommates={members.filter((m) => m.id !== user.id).map((m) => ({ id: m.id, name: m.name }))}
+            />
+            </Fold>
+            {myPending.length > 0 && theirPending.length > 0 && (
+              <Fold id="swap" title="Swap a task" summary="Trade one of yours for one of theirs">
+            <SwapForm
+              mine={myPending.map((o) => ({ id: o.id, label: `Mine: ${o.definition.title} (${fmt(o.dueAt)})` }))}
+              theirs={theirPending.map((o) => ({ id: o.id, label: `${first(o.assigneeId)}: ${o.definition.title} (${fmt(o.dueAt)})` }))}
+            />
+              </Fold>
+            )}
+          </div>
+        </Section>
+      )}
+
       <Section title="Day by day">
         <div className="space-y-4">
           {days.map((d) => {
@@ -205,7 +227,7 @@ export default async function PlannerPage({ searchParams }: { searchParams: Prom
                     {items.map((o) => (
                       <li key={o.id} className="card p-3">
                         <div className="flex items-center gap-2">
-                          <span aria-hidden>{CATEGORY_EMOJI[o.definition.category] ?? "📌"}</span>
+                          <CategoryIcon category={o.definition.category} className="h-7 w-7 shrink-0" />
                           <Link href={`/tasks/${o.definitionId}`} className={`min-w-0 flex-1 truncate text-sm font-medium ${o.status !== "PENDING" ? "text-muted line-through" : ""}`}>{o.definition.title}</Link>
                           {o.status === "DONE" && <Badge tone="green">Done</Badge>}
                           {o.status === "SKIPPED" && <Badge>Skipped</Badge>}
@@ -238,8 +260,9 @@ export default async function PlannerPage({ searchParams }: { searchParams: Prom
         </div>
       </Section>
 
-      <Section title="Completed work · last 4 weeks">
-        <div className="card overflow-x-auto p-4">
+      <div className="card mb-8 overflow-hidden">
+        <Fold id="history" title="Completed work, last 4 weeks" summary="Minutes of chores each person finished, by week">
+        <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs text-muted">
@@ -263,30 +286,8 @@ export default async function PlannerPage({ searchParams }: { searchParams: Prom
           </table>
           <p className="mt-2 text-xs text-muted">Estimated minutes of tasks each person completed, by week (weeks start Monday).</p>
         </div>
-      </Section>
-
-      {myPending.length > 0 && members.length > 1 && (
-        <Section title="Hand off a task">
-          <div className="card p-4">
-            <HandoffForm
-              week={offset}
-              mine={myPending.map((o) => ({ id: o.id, label: `${o.definition.title} (${fmt(o.dueAt)})` }))}
-              roommates={members.filter((m) => m.id !== user.id).map((m) => ({ id: m.id, name: m.name }))}
-            />
-          </div>
-        </Section>
-      )}
-
-      {myPending.length > 0 && theirPending.length > 0 && (
-        <Section title="Swap a task">
-          <div className="card p-4">
-            <SwapForm
-              mine={myPending.map((o) => ({ id: o.id, label: `Mine: ${o.definition.title} (${fmt(o.dueAt)})` }))}
-              theirs={theirPending.map((o) => ({ id: o.id, label: `${first(o.assigneeId)}: ${o.definition.title} (${fmt(o.dueAt)})` }))}
-            />
-          </div>
-        </Section>
-      )}
+        </Fold>
+      </div>
     </>
   );
 }
