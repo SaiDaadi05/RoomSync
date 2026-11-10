@@ -106,6 +106,20 @@ describe("planner service", () => {
     expect(moved.originalDueAt.toISOString()).toBe(before.originalDueAt.toISOString());
   });
 
+  it("offers one new time per missed recurring chore, not one per missed day", async () => {
+    const { household, owner } = await makeHousehold(0);
+    const fourDaysAgo = DateTime.now().setZone(TZ).minus({ days: 4 }).toISODate()!;
+    await createTask(owner.id, household.id, { title: "Dishes", recurrence: "DAILY", startsOn: fourDaysAgo, dueTime: "00:01", assignmentMode: "FIXED", assigneeId: owner.id });
+    // Make sure there are at least two missed runs of the same chore.
+    const first = await prisma.taskOccurrence.findFirstOrThrow({ where: { householdId: household.id }, orderBy: { dueAt: "asc" } });
+    const earlier = new Date(Math.min(first.dueAt.getTime(), Date.now()) - 2 * 86400_000);
+    await prisma.taskOccurrence.create({ data: { householdId: household.id, definitionId: first.definitionId, assigneeId: owner.id, sequence: 999, dueAt: earlier, originalDueAt: earlier } });
+    const overdue = await prisma.taskOccurrence.findMany({ where: { householdId: household.id, status: "PENDING", dueAt: { lt: new Date() } }, orderBy: { dueAt: "desc" } });
+    expect(overdue.length).toBeGreaterThan(1);
+    const { proposals } = await buildMissedProposals(owner.id, household.id);
+    expect(proposals.map((p) => p.occurrenceId)).toEqual([overdue[0].id]);
+  });
+
   it("availability windows reject overlaps", async () => {
     const { owner } = await makeHousehold(0);
     await addAvailability(owner.id, { weekday: 1, startMin: 1080, endMin: 1260 });
