@@ -65,3 +65,10 @@ export const COMMON_TIMEZONES = [
   "Australia/Sydney",
   "UTC",
 ];
+
+/** "2026-11-07" → "Nov 7" (adds the year when it isn't this year). */
+export function niceDate(isoDate: string, now = DateTime.now()) {
+  const d = DateTime.fromISO(isoDate);
+  if (!d.isValid) return isoDate;
+  return d.toFormat(d.year === now.year ? "LLL d" : "LLL d, yyyy");
+}
