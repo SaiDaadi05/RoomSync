@@ -36,7 +36,8 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       </p>
       {demoEnabled() && (
         <form action={startDemoAction} className="mt-4 border-t border-slate-100 pt-4 text-center">
-          <SubmitButton className="btn-ghost text-sm" pendingText="Setting up the demo house…">Just looking? Try the demo household</SubmitButton>
+          <p className="text-sm text-muted">Just looking? <Link href="/how-it-works" className="font-semibold text-ink underline underline-offset-2">See how it works</Link> or</p>
+          <SubmitButton className="btn-ghost text-sm" pendingText="Setting up the demo house…">open the demo house</SubmitButton>
         </form>
       )}
     </div>

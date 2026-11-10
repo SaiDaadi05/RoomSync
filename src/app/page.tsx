@@ -37,10 +37,14 @@ export default async function Landing() {
               <p className="mt-5 max-w-lg text-lg text-muted">Chores, errands, groceries, shared costs and schedules for your whole place, in one app everyone actually opens.</p>
               <div className="mt-7 flex flex-wrap items-center gap-3">
                 <Link href="/signup" className="btn-peach px-6 text-base">Get started free</Link>
-                {demoEnabled() && (
-                  <form action={startDemoAction}><SubmitButton className="btn-secondary px-5 text-base" pendingText="Setting up the demo house…">Try the demo house</SubmitButton></form>
-                )}
+                <Link href="/how-it-works" className="btn-secondary px-5 text-base">See how it works</Link>
               </div>
+              {demoEnabled() && (
+                <form action={startDemoAction} className="mt-3 text-sm text-muted">
+                  Rather click around yourself?{" "}
+                  <SubmitButton className="font-semibold text-ink underline underline-offset-2" pendingText="Setting up the demo house…">Open the demo house</SubmitButton>
+                </form>
+              )}
             </div>
             <PhonePreview />
           </div>
