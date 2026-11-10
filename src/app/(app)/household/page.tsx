@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DateTime } from "luxon";
 import { requireHousehold } from "@/server/session";
 import { getHouseholdOverview, listInvitations } from "@/server/households";
 import { emailConfigured } from "@/server/notifications";
@@ -6,6 +7,7 @@ import { prisma } from "@/server/db";
 import { COMMON_TIMEZONES, minutesToHHMM, todayIn } from "@/lib/time";
 import { activeAway } from "@/lib/away";
 import { Avatar, Badge, PageHeader, Section } from "@/components/ui";
+import { Fold, OpenFromHash } from "@/components/fold";
 import { CopyButton } from "@/components/copy-button";
 import { MemberActions } from "@/components/member-actions";
 import { openTaskCounts } from "@/server/members";
@@ -41,6 +43,12 @@ export default async function HouseholdPage({ searchParams }: { searchParams: Pr
   const myHandles = handleMap.get(user.id) ?? { venmoHandle: null, paypalHandle: null, cashtag: null };
   const appUrl = process.env.APP_URL ?? "http://localhost:3000";
   const google = connections.find((c) => c.provider === "GOOGLE");
+  const today = todayIn(household.timezone);
+  const away = activeAway(members.find((m) => m.id === user.id)!, today);
+  const shortDate = (iso: string) => DateTime.fromISO(iso).toFormat("LLL d");
+  const hm = (min: number) => DateTime.fromObject({ hour: Math.floor(min / 60), minute: min % 60 }).toFormat("h:mm a");
+  const payList = [myHandles.venmoHandle && "Venmo", myHandles.paypalHandle && "PayPal", myHandles.cashtag && "Cash App"].filter(Boolean) as string[];
+  const quiet = household.quietStartMin != null && household.quietEndMin != null ? `quiet ${hm(household.quietStartMin)} to ${hm(household.quietEndMin)}` : "no quiet hours";
 
   return (
     <>
@@ -98,29 +106,17 @@ export default async function HouseholdPage({ searchParams }: { searchParams: Pr
         </div>
       </Section>
 
-      <Section title="Household settings">
-        <div className="card p-4">
-          <HouseholdForm name={household.name} timezone={household.timezone} timezones={COMMON_TIMEZONES} canEdit={role === "OWNER"} />
-        </div>
-      </Section>
-
-      <Section title="House rules">
-        <div id="rules" className="card p-4">
-          {role === "OWNER" ? (
-            <HouseRulesForm rules={household.rules ?? ""}
-              quietStart={household.quietStartMin != null ? minutesToHHMM(household.quietStartMin) : ""}
-              quietEnd={household.quietEndMin != null ? minutesToHHMM(household.quietEndMin) : ""} />
-          ) : (
-            <div className="space-y-3 text-sm">
-              {household.rules ? <p className="whitespace-pre-line">{household.rules}</p> : <p className="text-muted">No house rules yet. The owner can add some.</p>}
-              <p className="text-muted">{household.quietStartMin != null && household.quietEndMin != null ? `Quiet hours: ${minutesToHHMM(household.quietStartMin!)} to ${minutesToHHMM(household.quietEndMin!)}. The planner won't suggest chores then.` : "No quiet hours set."}</p>
-            </div>
-          )}
-        </div>
-      </Section>
-
-      <Section title="Calendars">
-        <div id="calendars" className="card divide-y divide-slate-100">
+      <Section title="Settings">
+        <OpenFromHash />
+        <div className="card overflow-hidden">
+          <Fold id="away" title="Away" summary={away ? (away.now ? `Away until ${shortDate(away.until)}` : `Away ${shortDate(away.from)} to ${shortDate(away.until)}`) : "Going away? Chores and the planner skip you."}>
+            <AwayForm today={today} away={away} />
+          </Fold>
+          <Fold id="pay" title="Get paid back" summary={payList.length ? payList.join(" · ") : "Add Venmo, PayPal or Cash App"}>
+            <PayHandlesForm handles={myHandles} />
+          </Fold>
+          <Fold id="calendars" title="Calendars" open={!!(sp.calendar || sp.feed)} summary={google?.status === "ACTIVE" ? "Google Calendar connected" : feed ? "Calendar link on" : "Not connected"}>
+            <div className="-mx-4 divide-y divide-slate-100 border-y border-slate-100">
           {sp.calendar && (
             <p role="status" className={`px-4 py-2 text-sm ${sp.calendar === "connected" ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800"}`}>
               {sp.calendar === "connected" ? "Google Calendar connected." : `Google Calendar connection failed (${sp.calendar}).`}
@@ -148,37 +144,38 @@ export default async function HouseholdPage({ searchParams }: { searchParams: Pr
           <div className="p-4 text-sm">
             <Link href="/planner/availability" className="font-semibold text-brand-700">Set your weekly availability manually →</Link>
           </div>
-        </div>
-      </Section>
-
-      <Section title="Get paid back">
-        <div id="pay" className="card p-4">
-          <PayHandlesForm handles={myHandles} />
-        </div>
-      </Section>
-
-      <Section title="Away" hint="Going home for the weekend or on a trip? Chores and the planner skip you.">
-        <div id="away" className="card p-4">
-          <AwayForm today={todayIn(household.timezone)} away={activeAway(members.find((m) => m.id === user.id)!, todayIn(household.timezone))} />
-        </div>
-      </Section>
-
-      <Section title="Your preferences">
-        <div className="card p-4">
+            </div>
+          </Fold>
+          <Fold id="rules" title="House rules and quiet hours" summary={[household.rules ? "Rules written" : "No rules yet", quiet].join(" · ")}>
+          {role === "OWNER" ? (
+            <HouseRulesForm rules={household.rules ?? ""}
+              quietStart={household.quietStartMin != null ? minutesToHHMM(household.quietStartMin) : ""}
+              quietEnd={household.quietEndMin != null ? minutesToHHMM(household.quietEndMin) : ""} />
+          ) : (
+            <div className="space-y-3 text-sm">
+              {household.rules ? <p className="whitespace-pre-line">{household.rules}</p> : <p className="text-muted">No house rules yet. The owner can add some.</p>}
+              <p className="text-muted">{household.quietStartMin != null && household.quietEndMin != null ? `Quiet hours: ${minutesToHHMM(household.quietStartMin!)} to ${minutesToHHMM(household.quietEndMin!)}. The planner won't suggest chores then.` : "No quiet hours set."}</p>
+            </div>
+          )}
+          </Fold>
+          <Fold id="preferences" title="Your preferences" summary={`Chores ${hm(user.preferredStartMin)} to ${hm(user.preferredEndMin)} · ${user.notifyEmail && emailConfigured() ? "app and email reminders" : user.notifyInApp ? "app reminders" : "reminders off"}`}>
           <PreferencesForm
             timezones={COMMON_TIMEZONES}
             emailAvailable={emailConfigured()}
             user={{ name: user.name, timezone: user.timezone, preferredStart: minutesToHHMM(user.preferredStartMin), preferredEnd: minutesToHHMM(user.preferredEndMin), notifyInApp: user.notifyInApp, notifyEmail: user.notifyEmail }}
           />
           <div className="mt-4 border-t border-slate-200 pt-4"><PushToggle publicKey={pushConfigured() ? vapidPublicKey() : null} devices={pushDevices} /></div>
+          </Fold>
+          <Fold id="household-settings" title="Name and timezone" summary={`${household.name} · ${household.timezone.replace(/_/g, " ")}`}>
+          <HouseholdForm name={household.name} timezone={household.timezone} timezones={COMMON_TIMEZONES} canEdit={role === "OWNER"} />
+          </Fold>
+          {!user.isDemo && (
+            <Fold id="password" title="Password" summary="Change your password">
+              <ChangePasswordForm email={user.email} />
+            </Fold>
+          )}
         </div>
       </Section>
-
-      {!user.isDemo && (
-        <Section title="Password">
-          <div id="password" className="card p-4"><ChangePasswordForm email={user.email} /></div>
-        </Section>
-      )}
 
       <div className="space-y-3">
         <StartTourButton className="btn-secondary w-full">Replay the app tour</StartTourButton>

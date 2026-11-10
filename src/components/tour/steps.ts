@@ -30,12 +30,6 @@ export const TOUR_STEPS: TourStep[] = [
     target: { selector: "[aria-haspopup='menu']" },
   },
   {
-    route: "/home",
-    title: "Or just ask",
-    body: "Type something like \"I paid $42 for groceries, split with everyone\" or \"who's on trash this week?\" The assistant drafts it and nothing is saved until you confirm.",
-    target: { selector: "[aria-label='Ask the assistant']" },
-  },
-  {
     route: "/tasks",
     title: "Chores that repeat on their own",
     body: "Set a chore once (weekly trash, monthly fridge clean-out) and RoomSync makes each due date, keeps the history, and reminds whoever's up. Tap Done when it's done.",

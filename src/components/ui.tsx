@@ -43,13 +43,18 @@ export function EmptyState({ icon, title, body, action }: { icon: string; title:
   );
 }
 
-/** App mark: a clay tile with a house-and-check. */
+/** App mark: an arched shared door on a clay tile. */
 export function Logo({ className = "h-9 w-9" }: { className?: string }) {
   return (
     <svg viewBox="0 0 64 64" className={className} aria-hidden>
       <rect width="64" height="64" rx="16" fill="var(--color-peach-400)" />
-      <path d="M14 33 32 17l18 16v15a3 3 0 0 1-3 3H17a3 3 0 0 1-3-3z" fill="#fff" />
-      <path d="m24 37 6 6 11-12" stroke="var(--color-peach-400)" strokeWidth="4.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <g stroke="var(--color-paper)" strokeLinecap="round" fill="none">
+        <path d="M19 50V29a13 13 0 0 1 26 0v21" strokeWidth="4.5" />
+        <path d="M32 16.5V50" strokeWidth="3" />
+        <path d="M13 50h38" strokeWidth="4.5" />
+      </g>
+      <circle cx="27.5" cy="35" r="2.4" fill="var(--color-paper)" />
+      <circle cx="36.5" cy="35" r="2.4" fill="var(--color-paper)" />
     </svg>
   );
 }

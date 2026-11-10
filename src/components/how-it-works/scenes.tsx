@@ -318,3 +318,36 @@ export function RecapScene({ p }: { p: number }) {
     </div>
   );
 }
+
+// Quick add: one box, three kinds of thing. Each line types out, then shows what it became.
+export function QuickAddScene({ p }: { p: number }) {
+  const lines = [
+    { text: "trash every Tue", kind: "Chore", detail: "Every Tuesday, 8 PM · takes turns" },
+    { text: "paper towels", kind: "Shopping list", detail: "Added for whoever shops next" },
+    { text: "$42 pizza", kind: "Cost", detail: "$42.00 · pick who it's split with" },
+  ];
+  return (
+    <div>
+      <Title kicker="Home screen">Quick add</Title>
+      <div className="space-y-3">
+        {lines.map((l, i) => {
+          const a = 0.04 + i * 0.27;
+          const typed = l.text.slice(0, Math.round(seg(p, a, a + 0.13) * l.text.length));
+          const res = seg(p, a + 0.15, a + 0.24);
+          return (
+            <div key={l.text} style={{ opacity: p >= a - 0.02 ? 1 : 0.25 }}>
+              <div className="flex items-center gap-2 rounded-xl border border-slate-300 px-3 py-2.5">
+                <span className="min-w-0 flex-1 truncate text-[13px]">{typed || <span className="text-muted">Quick add…</span>}</span>
+                <span className="rounded-lg bg-ink px-2.5 py-1 text-[11px] font-semibold text-white">Add</span>
+              </div>
+              <div className="mt-1.5 flex items-center gap-2 pl-1" style={enter(res, 8)}>
+                <span className="rounded-full border border-slate-300 px-2 py-0.5 text-[10px] font-semibold">{l.kind}</span>
+                <span className="text-[11px] text-muted">{l.detail}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

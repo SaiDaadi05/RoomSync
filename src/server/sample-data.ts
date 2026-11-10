@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import { DateTime } from "luxon";
 import { prisma } from "./db";
 import { createHousehold } from "./households";
-import { createTask, ensureOccurrences, completeOccurrence } from "./tasks";
+import { createTask, ensureOccurrences } from "./tasks";
 import { addShoppingItem, claimShoppingItem, markPurchased, purchaseWithExpense } from "./shopping";
 import { createExpense, recordSettlement } from "./expenses";
 
@@ -58,12 +58,30 @@ export async function createSampleHousehold(opts: SampleOptions) {
   await prisma.taskDefinition.updateMany({ where: { householdId: household.id }, data: { createdAt: new Date(threeWeeksAgo) } });
   await ensureOccurrences(household.id);
   const past = await prisma.taskOccurrence.findMany({ where: { householdId: household.id, dueAt: { lt: now.minus({ days: 1 }).toJSDate() } }, orderBy: { dueAt: "asc" } });
+  // Mark most past chores done in bulk (a few hundred fewer round trips than one
+  // completeOccurrence per chore, which made the demo button take seconds).
+  const doneBy = new Map<string, string[]>();
   for (const [i, o] of past.entries()) {
     if (i % 7 === 6) continue; // leave a few overdue
-    const who = o.assigneeId ?? all[i % 3];
-    await completeOccurrence(who, o.id);
-    await prisma.taskOccurrence.update({ where: { id: o.id }, data: { completedAt: new Date(o.dueAt.getTime() - 3600_000) } });
+    const who = o.assigneeId ?? all[i % 3]!;
+    doneBy.set(who, [...(doneBy.get(who) ?? []), o.id]);
   }
+  const doneIds = [...doneBy.values()].flat();
+  await prisma.$transaction([
+    ...[...doneBy].map(([who, ids]) =>
+      prisma.taskOccurrence.updateMany({ where: { id: { in: ids } }, data: { status: "DONE", completedById: who } }),
+    ),
+    prisma.$executeRaw`UPDATE "TaskOccurrence" SET "completedAt" = "dueAt" - interval '1 hour' WHERE id = ANY(${doneIds})`,
+    prisma.taskEvent.createMany({
+      data: past.filter((o) => doneIds.includes(o.id)).map((o) => ({
+        occurrenceId: o.id,
+        actorId: [...doneBy].find(([, ids]) => ids.includes(o.id))![0],
+        type: "completed",
+        data: { forAssignee: o.assigneeId },
+        createdAt: new Date(o.dueAt.getTime() - 3600_000),
+      })),
+    }),
+  ]);
 
   await createTask(jordan.id, household.id, {
     title: "Drop off package at UPS", kind: "ERRAND", category: "errands", estimatedMinutes: 20,

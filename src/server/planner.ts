@@ -136,12 +136,16 @@ export async function buildMissedProposals(userId: string, householdId: string) 
   const m = await requireMember(userId, householdId);
   const now = new Date();
   const to = new Date(now.getTime() + 3 * 86400_000);
-  const occs = await prisma.taskOccurrence.findMany({
+  const all = await prisma.taskOccurrence.findMany({
     where: { householdId, status: "PENDING", dueAt: { lt: now } },
     include: { definition: true },
-    orderBy: { dueAt: "asc" },
-    take: 20,
+    orderBy: { dueAt: "desc" },
+    take: 100,
   });
+  // A recurring chore missed several times only needs doing once: offer a new time for its
+  // latest missed run, not one for every day it was skipped. Older runs stay overdue in history.
+  const seen = new Set<string>();
+  const occs = all.filter((o) => (seen.has(o.definitionId) ? false : (seen.add(o.definitionId), true))).reverse().slice(0, 20);
   if (!occs.length) return { proposals: [] as Proposal[], notes: [] as BusyNote[] };
   const { people, notes } = await loadPeople(householdId, now, to);
   const proposals = proposeSchedule(

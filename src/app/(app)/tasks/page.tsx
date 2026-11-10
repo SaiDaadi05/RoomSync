@@ -71,8 +71,8 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
         <EmptyState
           icon={view === "history" ? "📜" : "✨"}
           title={view === "history" ? "No completed tasks yet" : view === "mine" ? "Nothing on your plate" : "No upcoming tasks"}
-          body={view === "history" ? "Finished chores show up here so everyone can see who's been pitching in." : "Add a chore or errand and it'll show up here."}
-          action={view !== "history" ? <LinkButton href="/tasks/new">Add a chore</LinkButton> : undefined}
+          body={view === "history" ? "Finished chores show up here so everyone can see who's been pitching in." : view === "mine" ? "Nothing is assigned to you right now. Chores nobody has claimed are under Up for grabs." : "Add a chore or errand and it'll show up here."}
+          action={view === "mine" ? <LinkButton href={qs({ view: "open" })}>See what's up for grabs</LinkButton> : view !== "history" ? <LinkButton href="/tasks/new">Add a chore</LinkButton> : undefined}
         />
       ) : (
         groups.filter((g) => g.items.length).map((g) => (

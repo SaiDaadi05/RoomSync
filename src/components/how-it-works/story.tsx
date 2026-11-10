@@ -1,17 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AssistantScene, BillsScene, ChoreScene, PlanScene, RecapScene, ShoppingScene, SplitScene, SwapScene } from "./scenes";
+import { BillsScene, ChoreScene, PlanScene, QuickAddScene, RecapScene, ShoppingScene, SplitScene, SwapScene } from "./scenes";
 
 const CHAPTERS = [
-  { when: "Sunday night", title: "The week plans itself.", body: "RoomSync looks at everyone's free time and how long each chore really takes, then spreads the work so nobody carries the house. A 40-minute bathroom clean counts for more than taking out the trash.", Scene: PlanScene },
-  { when: "Monday", title: "Trash day, without the group chat.", body: "Whoever's up gets a reminder. They tick it off, the history is saved, and next time is already lined up for the next person in the rotation.", Scene: ChoreScene },
-  { when: "Tuesday", title: "Out of oat milk.", body: "One list for the whole place. Say you're getting something so it isn't bought twice, then log the receipt when you're back.", Scene: ShoppingScene },
-  { when: "Wednesday", title: "One receipt, three shares.", body: "Split evenly, by shares, by percent, or item by item. Everyone's balance updates the moment it's added, down to the cent.", Scene: SplitScene },
-  { when: "Thursday", title: "Plans change.", body: "Ask to swap a chore with someone. They get the request, and nothing moves until they agree.", Scene: SwapScene },
-  { when: "The 1st", title: "Rent shows up on its own.", body: "Set up rent, internet and utilities once. They're added every month and split with whoever lives there, so a new roommate is included from their first month.", Scene: BillsScene },
-  { when: "Any time", title: "Or just say it.", body: "Type it the way you'd text it. The assistant fills in the details and shows you a draft, and nothing is saved until you confirm.", Scene: AssistantScene },
-  { when: "Sunday, 6 PM", title: "The week, in one page.", body: "Who did what, what the house spent, and what's coming up. No scorekeeping, no awkward conversations.", Scene: RecapScene },
+  { when: "Sunday night", title: "The work gets shared fairly.", body: "RoomSync counts how long each chore really takes, so a 45-minute bathroom clean counts for more than taking out the trash. It spreads the week so nobody ends up carrying the house.", how: ["Add your chores with a rough time for each", "Pick who takes turns on what", "Check the Planner to see the week evened out"], Scene: PlanScene },
+  { when: "Monday", title: "Chores take turns on their own.", body: "Set a chore once, like trash every Monday and Thursday. RoomSync rotates it between roommates, reminds whoever's up, and keeps the history so there's no arguing about whose turn it is.", how: ["You get a reminder when it's your turn", "Tap Done when it's finished", "Next time goes to the next person"], Scene: ChoreScene },
+  { when: "Any time", title: "Type it like a text.", body: "One box on the home screen handles all three kinds of thing. RoomSync reads what you typed and tells you what it will do before you press Add.", how: ["“trash every Tue” makes a repeating chore", "“paper towels” goes on the shopping list", "“$42 pizza” starts a shared cost"], Scene: QuickAddScene },
+  { when: "Tuesday", title: "One shopping list for the house.", body: "Anyone can add what's running low. Say you're getting something so it isn't bought twice, then log the receipt when you're back and the cost is split for you.", how: ["Add an item, or claim one you'll pick up", "Tick it off when it's bought", "Add the receipt total to split it"], Scene: ShoppingScene },
+  { when: "Wednesday", title: "Split any cost, down to the cent.", body: "Evenly, by shares, by percent or item by item. Everyone's balance updates as soon as it's added, and RoomSync works out the fewest payments to settle up.", how: ["Add the amount and who paid", "Choose who it's split with", "See who owes whom on the Money tab"], Scene: SplitScene },
+  { when: "Thursday", title: "Plans change. Swap, don't argue.", body: "Can't do your chore this week? Ask a roommate to swap. Nothing moves until they say yes, and the fairness count stays right.", how: ["Open the Planner", "Pick your chore and the one you want, tap Ask to swap", "It moves only when they accept"], Scene: SwapScene },
+  { when: "The 1st", title: "Rent and bills add themselves.", body: "Set up rent, internet and utilities once. They're added every month and split with whoever lives there, so a new roommate is included from their first month.", how: ["Add a recurring bill once", "Pick the day of the month", "It's split automatically each month"], Scene: BillsScene },
+  { when: "Sunday, 6 PM", title: "The week, in one page.", body: "Who did what, what the house spent and what's coming up. No points, no scorekeeping, just a calm summary everyone can see.", how: ["Arrives every Sunday evening", "Shows chores done and money spent", "Lists what's coming up next week"], Scene: RecapScene },
 ] as const;
 
 /** Where in the viewport a chapter counts as "being read". */
@@ -97,7 +97,7 @@ export function Story() {
             <span className="block w-px bg-ink" style={{ height: `${overall * 100}%` }} />
           </span>
           {CHAPTERS.map((c, i) => (
-            <li key={c.title} ref={(el) => { refs.current[i] = el; }} className="flex min-h-[100svh] items-end pb-[8svh] md:min-h-[95vh] md:items-center md:pb-10 md:pl-10 md:pt-10">
+            <li key={c.title} ref={(el) => { refs.current[i] = el; }} className="flex min-h-[80svh] items-start pb-[12svh] pt-6 md:min-h-[95vh] md:items-center md:pb-10 md:pl-10 md:pt-10">
               <div className={`max-w-md transition-opacity duration-500 motion-reduce:transition-none ${i === active ? "opacity-100" : "opacity-30"}`}>
                 <p className="hidden items-center gap-3 text-sm font-semibold text-muted md:flex">
                   <span className="tabular-nums">{String(i + 1).padStart(2, "0")}</span>
@@ -106,6 +106,17 @@ export function Story() {
                 </p>
                 <h2 className="text-[1.75rem] md:mt-3 font-bold leading-[1.1] tracking-tight md:text-[2.75rem]">{c.title}</h2>
                 <p className="mt-3 text-base leading-relaxed text-slate-700 md:mt-4 md:text-[17px]">{c.body}</p>
+                <div className="mt-5 border-t border-slate-200 pt-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted">How you&apos;d do it</p>
+                  <ol className="mt-2 space-y-1.5">
+                    {c.how.map((step, n) => (
+                      <li key={step} className="flex gap-3 text-[15px] text-slate-700">
+                        <span className="w-4 shrink-0 font-semibold tabular-nums text-ink">{n + 1}</span>
+                        <span>{step}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
               </div>
             </li>
           ))}
