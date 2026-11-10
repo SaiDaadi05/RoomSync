@@ -45,8 +45,9 @@ export default async function OnboardingInvite() {
             const link = `${appUrl}/join/${inv.code}`;
             return (
               <li key={inv.id} className="card p-4">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <code className="flex-1 font-mono text-lg tracking-widest">{inv.code}</code>
+                  <CopyButton text={inv.code} label="Copy code" />
                   <CopyButton text={link} label="Copy link" />
                   <ShareButton title={`Join ${household.name} on RoomSync`} text={`Join our place on RoomSync so we can split chores and costs:`} url={link} />
                 </div>

@@ -20,6 +20,7 @@ export async function createHousehold(userId: string, input: unknown, opts: { is
       ...data,
       isDemo: opts.isDemo ?? false,
       memberships: { create: { userId, role: "OWNER" } },
+      invitations: { create: { code: generateInvitationCode(), createdById: userId, expiresAt: new Date(Date.now() + INVITE_TTL_DAYS * 86400_000) } },
     },
   });
 }
@@ -49,13 +50,15 @@ export async function getHouseholdOverview(userId: string, householdId: string) 
 
 const INVITE_TTL_DAYS = 7;
 
+function generateInvitationCode() {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  return Array.from({ length: 10 }, () => alphabet[crypto.randomInt(alphabet.length)]).join("");
+}
+
 export async function createInvitation(userId: string, householdId: string, email?: string | null) {
   await requireMember(userId, householdId);
   const cleanEmail = email ? z.string().trim().toLowerCase().email("Enter a valid email").parse(email) : null;
-  // 10 chars from an unambiguous alphabet: easy to read aloud or text to a roommate.
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  const bytes = crypto.randomBytes(10);
-  const code = Array.from(bytes, (b) => alphabet[b % alphabet.length]).join("");
+  const code = generateInvitationCode();
   return prisma.invitation.create({
     data: {
       householdId,

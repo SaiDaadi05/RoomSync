@@ -7,9 +7,9 @@ import { getCurrentUser } from "@/server/session";
 
 export const metadata = { title: "Sign up" };
 
-export default async function SignupPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
+export default async function SignupPage({ searchParams }: { searchParams: Promise<{ next?: string; code?: string }> }) {
   if (await getCurrentUser()) redirect("/home");
-  const { next } = await searchParams;
+  const { next, code } = await searchParams;
   return (
     <div className="card p-6">
       <h1 className="mb-1 text-xl font-bold">Create your account</h1>
@@ -29,6 +29,11 @@ export default async function SignupPage({ searchParams }: { searchParams: Promi
           <label className="label" htmlFor="password">Password</label>
           <input id="password" name="password" type="password" autoComplete="new-password" minLength={8} required className="input" />
           <p className="mt-1 text-xs text-muted">At least 8 characters.</p>
+        </div>
+        <div>
+          <label className="label" htmlFor="houseCode">Household invite code (optional)</label>
+          <input id="houseCode" name="houseCode" defaultValue={code ?? ""} maxLength={10} autoCapitalize="characters" autoCorrect="off" spellCheck={false} className="input font-mono uppercase tracking-wider" placeholder="e.g. K7Q2M9XPRA" />
+          <p className="mt-1 text-xs text-muted">Have a code from your roommate? Enter it here, or join later.</p>
         </div>
         <SubmitButton className="btn-primary w-full" pendingText="Creating account…">Create account</SubmitButton>
       </ActionForm>

@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { previewInvitation } from "@/server/households";
 import { signUp, verifyLogin, updatePreferences } from "@/server/auth";
 import { currentSessionToken, endSession, requireUser, startSession } from "@/server/session";
 import { changePassword, requestPasswordReset, resetPassword } from "@/server/passwords";
@@ -15,7 +16,13 @@ function safeNext(next: FormDataEntryValue | null) {
 }
 
 export async function signUpAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const code = String(fd.get("houseCode") ?? "").trim().toUpperCase();
   try {
+    if (code) {
+      const invite = await previewInvitation(code);
+      if (!invite) return { error: "That household invite code is invalid or expired. Ask your roommate for a new code." };
+      if (invite.email && invite.email !== String(fd.get("email") ?? "").trim().toLowerCase()) return { error: "This invitation is for a different email address." };
+    }
     const user = await signUp({
       name: fd.get("name"),
       email: fd.get("email"),
@@ -26,6 +33,7 @@ export async function signUpAction(_: ActionState, fd: FormData): Promise<Action
   } catch (e) {
     return toActionError(e);
   }
+  if (code) redirect(`/join/${encodeURIComponent(code)}`);
   redirect(safeNext(fd.get("next")) === "/home" ? "/onboarding" : safeNext(fd.get("next")));
 }
 

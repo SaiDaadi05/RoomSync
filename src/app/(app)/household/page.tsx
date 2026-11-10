@@ -92,9 +92,10 @@ export default async function HouseholdPage({ searchParams }: { searchParams: Pr
             const link = `${appUrl}/join/${inv.code}`;
             return (
               <div key={inv.id} className="rounded-xl bg-slate-50 p-3">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <code className="flex-1 font-mono text-lg tracking-widest">{inv.code}</code>
-                  <CopyButton text={link} label="Copy link" />
+                  <CopyButton text={inv.code} label="Copy code" />
+                  <CopyButton text={link} label="Copy invite link" />
                   <form action={revokeInviteAction}><input type="hidden" name="id" value={inv.id} />
                     <button className="text-xs text-slate-500 hover:text-red-700">Revoke</button>
                   </form>

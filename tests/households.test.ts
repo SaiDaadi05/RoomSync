@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { makeHousehold, makeUser } from "./helpers";
-import { acceptInvitation, createInvitation, getHouseholdOverview, revokeInvitation } from "@/server/households";
+import { acceptInvitation, createInvitation, listInvitations, previewInvitation, getHouseholdOverview, revokeInvitation } from "@/server/households";
 import { createTask, completeOccurrence, listOccurrences, getTask } from "@/server/tasks";
 import { createSession, getUserBySessionToken, verifyLogin, deleteSession } from "@/server/auth";
 import { prisma } from "@/server/db";
@@ -81,5 +81,24 @@ describe("demo mode isolation", () => {
     const { computeBalances } = await import("@/server/expenses");
     const { balances } = await computeBalances(demoUser.id, demo.id);
     expect(balances.reduce((s, b) => s + b.cents, 0)).toBe(0);
+  });
+});
+
+
+describe("initial household invitation", () => {
+  it("creates distinct codes for new households and joins only the selected home", async () => {
+    const a = await makeHousehold(0);
+    const b = await makeHousehold(0);
+    const [ia] = await listInvitations(a.owner.id, a.household.id);
+    const [ib] = await listInvitations(b.owner.id, b.household.id);
+    expect(ia.code).toMatch(/^[A-HJ-NP-Z2-9]{10}$/);
+    expect(ia.code).not.toBe(ib.code);
+    expect((await previewInvitation(ia.code.toLowerCase()))?.householdName).toBe(a.household.name);
+    const roommate = await makeUser("Newmate");
+    const joined = await acceptInvitation(roommate.id, ` ${ia.code.toLowerCase()} `);
+    expect(joined.id).toBe(a.household.id);
+    await expect(getHouseholdOverview(roommate.id, b.household.id)).rejects.toThrow();
+    await expect(listInvitations(b.owner.id, a.household.id)).rejects.toThrow();
+    expect(await previewInvitation(ia.code)).toBeNull();
   });
 });

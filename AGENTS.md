@@ -94,4 +94,4 @@ Everything below is merged to `main` and live at https://roomsync-brown.vercel.a
 
 | Area | Owner | Branch / PR | Notes |
 |---|---|---|---|
-| _(add a row when you start something)_ | | | |
+| Household invitation codes | Codex | codex/household-codes | Implemented; build/typecheck and 8 mocked tests pass; DB/browser verification pending (#53) |

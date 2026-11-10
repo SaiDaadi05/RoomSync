@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { listInvitations } from "@/server/households";
+import { CopyButton } from "@/components/copy-button";
 import { DateTime } from "luxon";
 import { requireHousehold } from "@/server/session";
 import { listOccurrences } from "@/server/tasks";
@@ -20,6 +22,7 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
 
 export default async function HomePage() {
   const { user, household } = await requireHousehold();
+  const invite = (await listInvitations(user.id, household.id)).find((inv) => !inv.email);
   const tz = household.timezone;
   const cur = household.currency;
   const now = DateTime.now().setZone(tz);
@@ -97,6 +100,16 @@ export default async function HomePage() {
           return away.length > 0 && <p className="mt-1 text-sm text-muted">{away.map((m) => `${firstName(m.name)} is away until ${DateTime.fromISO(m.awayUntil!).toFormat("ccc LLL d")}`).join(" · ")}.</p>;
         })()}
       </div>
+
+      <details className="card mb-5 p-4">
+        <summary className="cursor-pointer text-sm font-semibold">Invite a roommate to {household.name}</summary>
+        {invite ? <div className="mt-3 space-y-2">
+          <code className="block font-mono text-xl tracking-widest">{invite.code}</code>
+          <div className="flex flex-wrap gap-2"><CopyButton text={invite.code} label="Copy code" /><CopyButton text={`${process.env.APP_URL ?? "http://localhost:3000"}/join/${invite.code}`} label="Copy invite link" /></div>
+          <p className="text-xs text-muted">One roommate can use this code within 7 days of creation. Enter it at signup or under Create or join another household.</p>
+        </div> : <p className="mt-2 text-sm text-muted">Create a new code to invite your next roommate.</p>}
+        <Link href="/household#invite" className="mt-3 inline-block text-sm underline">Manage invitations / create a new code</Link>
+      </details>
 
       <InstallPrompt />
 

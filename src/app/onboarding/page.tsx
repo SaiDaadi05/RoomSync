@@ -31,10 +31,10 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
       <p className="mb-6 text-sm text-muted">Start a household for your apartment, house, or dorm, or join the one your roommate already made.</p>
 
       <div className="card mb-4 p-5">
-        <h2 className="mb-3 font-semibold">Join with an invite code</h2>
+        <h2 className="mb-3 font-semibold">Join your roommate’s household</h2>
         <ActionForm action={joinHouseholdAction} className="flex gap-2">
           <label htmlFor="code" className="sr-only">Invite code</label>
-          <input id="code" name="code" defaultValue={code} placeholder="e.g. K7Q2M9XPRA" required className="input font-mono uppercase tracking-wider" />
+          <input id="code" name="code" defaultValue={code} placeholder="e.g. K7Q2M9XPRA" maxLength={10} autoCapitalize="characters" autoCorrect="off" spellCheck={false} required className="input font-mono uppercase tracking-wider" />
           <SubmitButton pendingText="Joining…">Join</SubmitButton>
         </ActionForm>
       </div>
