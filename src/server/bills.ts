@@ -2,7 +2,7 @@ import { z } from "zod";
 import { DateTime } from "luxon";
 import { Prisma } from "@prisma/client";
 import { prisma } from "./db";
-import { assertAllMembers, requireMember } from "./access";
+import { activeMembers, assertAllMembers, requireMember } from "./access";
 import { AppError, forbidden, notFound } from "./errors";
 import { computeSplits, expenseInputSchema } from "./expenses";
 import { notify } from "./notifications";
@@ -25,6 +25,8 @@ export const billInputSchema = z.object({
   participants: z.array(z.object({ userId: z.string(), amountCents: z.number().int().nonnegative().optional() })).min(1, "Pick at least one person to split with"),
   dayOfMonth: z.coerce.number().int().min(1, "Day must be 1–28").max(28, "Use a day from 1 to 28 so it exists every month"),
   startMonth: month,
+  /** Split equally among current members each month; participants is then ignored. Left out on edit = unchanged. */
+  splitWithEveryone: z.boolean().optional(),
 });
 
 /** Reuse the one-off expense rules (custom splits must add up exactly, no duplicates). */
@@ -133,7 +135,10 @@ export async function ensureBillExpenses(householdId: string, nowDate = new Date
       try {
         data = expenseInputSchema.parse({
           payerId: bill.payerId, amountCents: bill.amountCents, date, description: `${bill.description} (${DateTime.fromFormat(period, "yyyy-LL").toFormat("LLLL")})`,
-          category: bill.category, splitMethod: bill.splitMethod, participants: bill.participants,
+          category: bill.category,
+          ...(bill.splitWithEveryone
+            ? { splitMethod: "EQUAL", participants: (await activeMembers(householdId)).map((m) => ({ userId: m.id })) }
+            : { splitMethod: bill.splitMethod, participants: bill.participants }),
         });
         await assertAllMembers(householdId, [data.payerId, ...data.participants.map((p) => p.userId)]);
       } catch (e) {

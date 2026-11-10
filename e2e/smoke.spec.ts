@@ -79,7 +79,7 @@ test("new roommate: sign up, create a household, quick add, and log a split cost
   await page.waitForURL(/\/onboarding/);
   await page.fill('input[name="name"]', "E2E Flat");
   await page.click("text=Create household");
-  await page.waitForURL(/\/onboarding\/first-tasks|\/home/);
+  await page.waitForURL(/\/onboarding\/(invite|first-tasks)|\/home/);
 
   await page.goto("/home");
   await page.fill("#qa", "oat milk x2");
@@ -123,7 +123,7 @@ test("roommates in one household never see another household's data", async ({ p
   await other.waitForURL(/\/onboarding/);
   await other.fill('input[name="name"]', "Elsewhere");
   await other.click("text=Create household");
-  await other.waitForURL(/\/onboarding\/first-tasks|\/home/);
+  await other.waitForURL(/\/onboarding\/(invite|first-tasks)|\/home/);
   const res = await other.goto(firstExpense!);
   expect([403, 404]).toContain(res?.status());
   await expect(other.getByText("Costco run")).toHaveCount(0);

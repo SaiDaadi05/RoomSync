@@ -14,6 +14,7 @@ import { openTaskCounts } from "@/server/members";
 import { moveOutPlan } from "@/server/moveout";
 import { AwayForm, ChangePasswordForm, HouseRulesForm, HouseholdForm, InviteForm, LeaveForm, PayHandlesForm, PreferencesForm } from "@/components/settings-forms";
 import { getPayHandles } from "@/server/payments";
+import { StartTourButton } from "@/components/tour/tour";
 import { revokeInviteAction } from "@/app/actions/households";
 import { logoutAction } from "@/app/actions/auth";
 import { googleConfigured } from "@/server/calendar/google";
@@ -177,6 +178,7 @@ export default async function HouseholdPage({ searchParams }: { searchParams: Pr
       </Section>
 
       <div className="space-y-3">
+        <StartTourButton className="btn-secondary w-full">Replay the app tour</StartTourButton>
         <Link href="/onboarding" className="btn-secondary w-full">Create or join another household</Link>
         <form action={logoutAction}><button className="btn-secondary w-full">Log out</button></form>
         <LeaveForm openTasks={openCounts.get(user.id) ?? 0} viewerId={user.id} plan={{ userId: user.id, cents: myPlan.cents, currency: household.currency, payments: myPlan.payments }} />

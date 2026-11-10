@@ -26,7 +26,8 @@ export default async function Landing() {
           <nav className="flex items-center gap-2.5">
             <Logo className="h-9 w-9" />
             <span className="text-xl font-bold text-peach-400">RoomSync</span>
-            <Link href="/login" className="ml-auto rounded-full px-4 py-2 text-sm font-semibold hover:bg-slate-100">Log in</Link>
+            <Link href="/how-it-works" className="ml-auto rounded-full px-4 py-2 text-sm font-semibold hover:bg-slate-100">How it works</Link>
+            <Link href="/login" className="rounded-full px-4 py-2 text-sm font-semibold hover:bg-slate-100">Log in</Link>
           </nav>
           <div className="mt-10 grid items-center gap-12 md:mt-16 md:grid-cols-[1.1fr_1fr]">
             <div>

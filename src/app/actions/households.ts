@@ -25,7 +25,7 @@ export async function createHouseholdAction(_: ActionState, fd: FormData): Promi
   } catch (e) {
     return toActionError(e);
   }
-  redirect("/onboarding/first-tasks");
+  redirect("/onboarding/invite");
 }
 
 export async function joinHouseholdAction(_: ActionState, fd: FormData): Promise<ActionState> {
@@ -36,7 +36,7 @@ export async function joinHouseholdAction(_: ActionState, fd: FormData): Promise
   } catch (e) {
     return toActionError(e);
   }
-  redirect("/home");
+  redirect("/home?tour=1");
 }
 
 export async function switchHouseholdAction(fd: FormData) {
@@ -66,7 +66,7 @@ export async function addStarterChoresAction(fd: FormData) {
       dueTime: c.dueTime,
     });
   }
-  redirect("/home");
+  redirect("/onboarding/bills");
 }
 
 export async function createInviteAction(_: ActionState, fd: FormData): Promise<ActionState> {
@@ -79,6 +79,19 @@ export async function createInviteAction(_: ActionState, fd: FormData): Promise<
   } catch (e) {
     return toActionError(e);
   }
+}
+
+/** Same as createInviteAction, for the first-run invite screen. */
+export async function createOnboardingInviteAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const { user, household } = await requireHousehold();
+    const email = String(fd.get("email") ?? "").trim();
+    await createInvitation(user.id, household.id, email || null);
+  } catch (e) {
+    return toActionError(e);
+  }
+  revalidatePath("/onboarding/invite");
+  return { ok: true, message: "Invite ready. Copy or share it below." };
 }
 
 export async function revokeInviteAction(fd: FormData) {
