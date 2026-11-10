@@ -68,43 +68,30 @@ Two agents work on this repo (Claude and Codex), driven by different people. The
 3. **Don't edit files another in-progress area owns** without coordinating in that area's issue. Shared files (`prisma/schema.prisma`, `src/server/access.ts`, `src/components/forms.tsx`, this file) need small, separate commits so conflicts are easy to resolve.
 4. **When done**, move the row to "Done" in the same PR.
 
+### Current state (updated 2026-11-10)
+
+Everything below is merged to `main` and live at https://roomsync-brown.vercel.app (Vercel, Neon Postgres). There are no auto-deploys yet: production is redeployed by hand from `main`.
+
+- Chores and errands: recurring rules with per-occurrence history, rotation, up-for-grabs pool, swap requests with approval, handoffs, nudges, away mode, missed-chore handling.
+- Quick add on Home: one box for chores, shopping items and costs (`src/lib/quick-add.ts`).
+- Shopping list: claim, buy, split the receipt, "running low" staples.
+- Money: equal / shares / percent / item splits, balances, fewest-payments settle-up, recurring bills, spending insights + CSV, pay links (Venmo/PayPal/Cash App; links only, no money moves), move-out settle-up.
+- Planner: manual availability, fair scheduling suggestions, swaps.
+- Accounts: password change and reset (reset email needs SMTP), account deletion, login lockout.
+- Notifications: in-app, web push (VAPID keys set on production; not yet tested on a real phone), weekly recap.
+- Demo: `/how-it-works` is a scroll-through story of one week (the main demo). "Open the demo house" creates a throwaway demo household; demo houses are deleted after 48 hours by the daily job.
+- Onboarding: first-run setup and an in-app tour.
+
+### Not done yet / needs setup
+
+- Google Calendar is coded but untested against real Google (needs OAuth credentials).
+- Apple Calendar: not started; needs a product decision (iCloud CalDAV vs native iOS app).
+- Email (reminders, password reset): needs SMTP settings.
+- AI assistant: coded, hidden until `ANTHROPIC_API_KEY` is set.
+- 15-minute reminder schedule needs GitHub repo secrets `APP_URL` and `CRON_SECRET` (the daily Vercel cron runs without them).
+
 ### In progress
 
 | Area | Owner | Branch / PR | Notes |
 |---|---|---|---|
-| App foundation (all 5 stages, first pass) | Claude | `claude/app-foundation` / #2 | Awaiting review |
-| CI workflow (part of #10) | Claude | `claude/ci` (stacked on #2) | Awaiting review |
-| PWA: install + offline shell (part of #9) | Claude | `claude/pwa` (stacked on #2) | Awaiting review |
-| Split by shares, percent, item | Claude | `claude/better-splits` (stacked on #14) | Awaiting review |
-| Edit expenses and shopping items (#12) | Claude | `claude/edit-expenses` (stacked on #2) | Awaiting review |
-| Swap requests with approval (#6) | Claude | `claude/swap-requests` (stacked on #2) | Awaiting review |
-| Move-out settle-up | Claude | `claude/move-out` (stacked on #16) | Awaiting review |
-| Member removal and role changes (part of #11) | Claude | `claude/member-management` (stacked on #2) | Awaiting review |
-| Rebalance with consent + fairness history (#7) | Claude | `claude/rebalance` (stacked on #2) | Awaiting review |
-| AI assistant (per-area tools, confirm before change) | Claude | `claude/assistant` (stacked on #2) | Awaiting review |
-| Recurring bills | Claude | `claude/recurring-bills` (stacked on #2) | Awaiting review |
-| Running low staples | Claude | `claude/running-low` (stacked on #2) | Awaiting review |
-| Weekly recap | Claude | `claude/weekly-recap` (stacked on #2) | Awaiting review |
-| Nudge for overdue chores | Claude | `claude/nudge` (stacked on #2) | Awaiting review |
-| Spending insights + CSV export | Claude | `claude/spending-insights` (stacked on #2) | Awaiting review |
-| Pay links + settle-up reminders | Claude | `claude/pay-links` (stacked on #2) | Awaiting review |
-| House rules + quiet hours | Claude | `claude/house-rules` (stacked on #2) | Awaiting review |
-
-### Done
-
-| Area | Owner | PR |
-|---|---|---|
-| Scaffold: schema, auth, households, tasks engine | Claude | initial commit on `main` |
-
-### Remaining work (GitHub issues; unclaimed unless listed above)
-
-- (#3) **Google Calendar live verification:** the code exists (`src/server/calendar/google.ts`) but hasn't been tested against real Google. Needs a Google Cloud OAuth client (README → Google Calendar setup), then a test of connect, free/busy, add-to-calendar, and disconnect. Also: update or delete the Google event when a planned task is rescheduled or completed.
-- (#4) **Apple Calendar:** not started. Needs a product decision first: iCloud CalDAV with an app-specific password vs. a native iOS app using EventKit. Check Apple's current docs before choosing.
-- (#5) **Email reminders:** configure SMTP and verify the worker sends. Add an unsubscribe link and per-type preferences.
-- (#6) **Swap requests with approval:** swaps are currently immediate plus a notification. Add a request → accept/decline flow.
-- (#7) **Fairness improvements:** a "rebalance this week" suggestion that proposes reassigning already-assigned tasks (with consent), and fairness history over longer periods.
-- (#8) **Receipts storage driver:** add an S3/R2 implementation of `src/server/storage.ts` for hosted deployments.
-- (#9) **PWA:** service worker, offline shell, install prompt, and web push (as a separate, clearly labeled notification channel).
-- (#10) **Deployment:** hosting, managed Postgres, a scheduled worker, and CI that runs lint, tests, and build on PRs.
-- (#11) **Account features:** password reset, email verification, and member removal and role changes by the owner.
-- (#12) **Editing expenses** (currently delete and re-add) and editing shopping items inline.
+| _(add a row when you start something)_ | | | |
