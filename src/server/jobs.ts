@@ -26,4 +26,14 @@ export async function cleanUp(now = new Date()) {
     prisma.passwordReset.deleteMany({ where: { OR: [{ expiresAt: { lt: dayAgo } }, { usedAt: { lt: dayAgo } }] } }),
     prisma.loginFailure.deleteMany({ where: { createdAt: { lt: dayAgo } } }),
   ]);
+  await cleanUpDemos(now);
 }
+
+/** Demo houses are throwaway: remove ones older than two days, with their made-up roommates. */
+export async function cleanUpDemos(now = new Date()) {
+  const cutoff = new Date(now.getTime() - DEMO_LIFETIME_HOURS * 3600_000);
+  const households = await prisma.household.deleteMany({ where: { isDemo: true, createdAt: { lt: cutoff } } });
+  const users = await prisma.user.deleteMany({ where: { isDemo: true, createdAt: { lt: cutoff } } });
+  return { households: households.count, users: users.count };
+}
+export const DEMO_LIFETIME_HOURS = 48;
