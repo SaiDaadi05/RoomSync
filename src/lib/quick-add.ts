@@ -68,7 +68,9 @@ export function parseQuickAdd(input: string, ctx: Ctx): QuickAddResult | null {
   }
 
   // ---- Shopping with an explicit cue ----
-  const explicitShop = SHOP_PREFIX.test(text) || SHOP_SUFFIX.test(text);
+  // "buy light bulbs tomorrow" has a day on it, so it's an errand, not a list item called "Light bulbs tomorrow".
+  const hasWhen = new RegExp(`\\b(?:today|tonight|tomorrow|tmrw|tmr|every|daily|weekly|${DAY_RE})\\b|@[a-z]|\\d\\s?(?:am|pm)\\b`, "i").test(text);
+  const explicitShop = SHOP_SUFFIX.test(text) || (SHOP_PREFIX.test(text) && !hasWhen);
   if (explicitShop) return shopping(text.replace(SHOP_PREFIX, "").replace(SHOP_SUFFIX, ""));
 
   // ---- Task signals ----
