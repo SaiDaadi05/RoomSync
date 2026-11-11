@@ -3,6 +3,7 @@ import { DateTime } from "luxon";
 import { requireHousehold } from "@/server/session";
 import { listOccurrences } from "@/server/tasks";
 import { activeMembers } from "@/server/access";
+import { getFeed } from "@/server/calendar/feed";
 import { TaskList, type OccWithDef } from "@/components/task-row";
 import { EmptyState, LinkButton, PageHeader, Section } from "@/components/ui";
 
@@ -41,6 +42,9 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
       { title: "Next two weeks", items: pending.filter((o) => o.dueAt > endOfToday) },
     ];
   }
+  // Offer the calendar link on "Mine" until a calendar app has actually fetched it.
+  const feed = view === "mine" ? await getFeed(user.id, household.id) : null;
+  const offerCalendar = view === "mine" && !feed?.lastFetchedAt;
   const total = groups.reduce((n, g) => n + g.items.length, 0);
   const categories = ["cleaning", "kitchen", "trash", "laundry", "bathroom", "groceries", "errands", "bills", "other"];
   const qs = (patch: Record<string, string | undefined>) => {
@@ -80,6 +84,18 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
             <TaskList items={g.items} members={members} tz={tz} currentUserId={user.id} />
           </Section>
         ))
+      )}
+      {offerCalendar && (
+        <div className="card mt-6 flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+          <div className="flex-1">
+            <p className="font-medium">See your chores in your calendar</p>
+            <p className="text-xs text-muted">Your chores show up in Apple Calendar on your phone and Mac, and stay up to date.</p>
+          </div>
+          <div className="flex items-center gap-4">
+            <a href="/api/calendar/subscribe" className="btn-primary min-h-9 text-sm">Add to Apple Calendar</a>
+            <a href="/api/calendar/subscribe?app=google" target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-ink underline underline-offset-2">Google Calendar</a>
+          </div>
+        </div>
       )}
     </>
   );

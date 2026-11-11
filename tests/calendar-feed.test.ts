@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { makeHousehold } from "./helpers";
 import { createTask } from "@/server/tasks";
 import { prisma } from "@/server/db";
-import { deleteFeed, getFeed, renderFeed, resetFeed } from "@/server/calendar/feed";
+import { deleteFeed, ensureFeed, getFeed, renderFeed, resetFeed, webcalUrl } from "@/server/calendar/feed";
 import { leaveHousehold } from "@/server/households";
 import { buildCalendar, escapeText, foldLine } from "@/lib/ics";
 
@@ -78,5 +78,21 @@ describe("calendar subscribe feed", () => {
     const a = await makeHousehold(0);
     const b = await makeHousehold(0);
     await expect(resetFeed(b.owner.id, a.household.id)).rejects.toThrow();
+  });
+});
+
+describe("one-tap subscribe", () => {
+  it("makes a link once and then keeps returning the same one", async () => {
+    const { household, owner } = await makeHousehold(0);
+    const first = await ensureFeed(owner.id, household.id);
+    expect(await ensureFeed(owner.id, household.id)).toBe(first);
+    expect(await renderFeed(tokenOf(first))).not.toBeNull();
+    expect(webcalUrl(first)).toMatch(/^webcal:\/\/.+\.ics$/);
+  });
+
+  it("won't make a link in someone else's household", async () => {
+    const { owner } = await makeHousehold(0);
+    const other = await makeHousehold(0, "Other Apt");
+    await expect(ensureFeed(owner.id, other.household.id)).rejects.toThrow();
   });
 });
