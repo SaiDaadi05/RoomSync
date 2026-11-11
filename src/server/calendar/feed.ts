@@ -35,6 +35,14 @@ export async function resetFeed(userId: string, householdId: string) {
   return feedUrl(token);
 }
 
+/** The caller's existing link, or a new one if they don't have one yet. Never replaces a working link. */
+export async function ensureFeed(userId: string, householdId: string) {
+  return (await getFeed(userId, householdId))?.url ?? resetFeed(userId, householdId);
+}
+
+/** Same link with webcal://, which makes Apple Calendar (and most calendar apps) offer to subscribe. */
+export const webcalUrl = (url: string) => url.replace(/^https?:\/\//, "webcal://");
+
 export async function deleteFeed(userId: string, householdId: string) {
   await requireMember(userId, householdId);
   await prisma.calendarFeed.deleteMany({ where: { userId, householdId } });

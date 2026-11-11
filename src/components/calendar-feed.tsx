@@ -13,7 +13,11 @@ export function CalendarFeedRow({ feed }: { feed: { url: string; lastFetchedAt: 
         </p>
       </div>
       {!feed ? (
-        <form action={resetCalendarFeedAction}><button className="btn-secondary min-h-9 text-sm">Create my calendar link</button></form>
+        <div className="flex flex-wrap items-center gap-2">
+          <a href="/api/calendar/subscribe" className="btn-primary min-h-9 text-sm">Add to Apple Calendar</a>
+          <a href="/api/calendar/subscribe?app=google" target="_blank" rel="noopener noreferrer" className="btn-secondary min-h-9 text-sm">Add to Google Calendar</a>
+          <form action={resetCalendarFeedAction}><button className="px-2 text-xs font-semibold text-ink underline underline-offset-2">Just show me the link</button></form>
+        </div>
       ) : (
         <>
           <div className="flex items-center gap-2">
